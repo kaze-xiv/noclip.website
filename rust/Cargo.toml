@@ -35,6 +35,12 @@ noclip-macros = { version = "*", path = "./noclip-macros" }
 texture2ddecoder = { git = "https://github.com/wgreenberg/texture2ddecoder" }
 anyhow = "1.0.99"
 
+# FFXIV
+physis = { path = "/data/Projects/Physis" }
+binrw = "0.15.0"
+euclid = "0.22.11"
+
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(wasm_bindgen_unstable_test_coverage)'] }
 
