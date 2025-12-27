@@ -102,6 +102,7 @@ import * as Scenes_KirbyAirRide from './KirbyAirRide/scenes.js';
 import * as Scenes_Descent1 from './Descent1_2/Scenes_Descent1.js';
 import * as Scenes_Descent2 from './Descent1_2/Scenes_Descent2.js';
 import * as Scenes_Descent2Vertigo from './Descent1_2/Scenes_Descent2Vertigo.js';
+import * as Scenes_FinalFantasyXIV from './FinalFantasyXIV/scenes.js';
 
 import { DroppedFileSceneDesc, traverseFileSystemDataTransfer } from './Scenes_FileDrops.js';
 
@@ -215,6 +216,7 @@ const sceneGroups: (string | SceneGroup)[] = [
     Scenes_SuperMarioOdyssey.sceneGroup,
     Scenes_SuperSmashBrosMelee.sceneGroup,
     Scenes_KirbyAirRide.sceneGroup,
+    Scenes_FinalFantasyXIV.sceneGroup,
     Scenes_WiiUTransferTool.sceneGroup,
     Scenes_GoldenEye007.sceneGroup,
     Scenes_Test.sceneGroup,
