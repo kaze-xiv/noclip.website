@@ -20,7 +20,7 @@ export class Texture {
     public converted: DecodedSurfaceSW | null = null;
     public gfxTexture: GfxTexture | null = null;
 
-    constructor(private buffer: ArrayBufferSlice, public path: string) {
+    constructor(public buffer: ArrayBufferSlice, public path: string) {
         const view = this.buffer.createDataView();
         this.attributes = view.getUint32(0, true);
         this.format = view.getUint32(4, true);
