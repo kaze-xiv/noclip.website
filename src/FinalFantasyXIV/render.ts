@@ -227,10 +227,8 @@ export class TerrainModelRenderer {
     public origin: vec3 = vec3.create();
     public modelMatrix: mat4 = mat4.create();
     public meshes: MeshWrapper[] = [];
-    public model: FFXIVModel;
 
-    constructor(public globals: RenderGlobals, public modelIndex: number) {
-        const model = this.model = globals.terrain.models[modelIndex];
+    constructor(public globals: RenderGlobals, public model: FFXIVModel, public modelIndex: number) {
         this.meshes = model.meshes;
         this.meshRenderers = range(0, this.meshes.length).map(i => new MeshRenderer(globals, this, i));
         const pos2D = vec2.create();
@@ -300,7 +298,7 @@ export class RenderGlobals {
 }
 
 export class FFXIVRenderer implements Viewer.SceneGfx {
-    private modelRenderers: TerrainModelRenderer[] = [];
+    private modelRenderers: (TerrainModelRenderer | null)[] = [];
 
     globals: RenderGlobals;
 
@@ -309,30 +307,11 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem) {
         this.globals = new RenderGlobals(device, filesystem, terrain)
 
-        this.loadTextures();
-
         this.modelRenderers = range(0, terrain.plateCount).map(i => {
-            return new TerrainModelRenderer(this.globals, i);
+            const model = this.globals.terrain.models[i];
+            if (!model) return null;
+            return new TerrainModelRenderer(this.globals, model, i);
         });
-    }
-
-    private loadTextures() {
-        const textures: Viewer.Texture[] = [];
-        this.textureHolder = new FakeTextureHolder(textures);
-
-        let yup = 0;
-        this.globals.filesystem.textures.forEach(t => {
-            t.converted = convertTexture(t);
-            if (t.converted) {
-                textures.push(textureToCanvas(t)!);
-                this.textureHolder.textureNames.push(t.path)
-                t.gfxTexture = makeGraphicsTexture(this.globals.renderHelper.device, t.converted);
-                if (t.gfxTexture != null) yup++
-            }
-        })
-        console.log(this.textureHolder)
-
-        console.log(`Yup count: ${yup}/${this.globals.filesystem.textures.length}`)
     }
 
     public adjustCameraController(c: CameraController) {
@@ -384,7 +363,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     }
 
     public destroy(): void {
-        this.modelRenderers.forEach((r) => r.destroy());
+        this.modelRenderers.forEach((r) => r?.destroy());
         this.globals.destroy();
     }
 }
@@ -399,4 +378,22 @@ function textureToCanvas(texture: Texture): Viewer.Texture | null {
     const extraInfo = new Map<string, string>();
     // extraInfo.set('Format', "IDK");
     return { name: texture.path, surfaces, extraInfo };
+}
+
+export function processTextures(device: GfxDevice, textures: Texture[]): FakeTextureHolder {
+    const vTextures: Viewer.Texture[] = [];
+    const fth = new FakeTextureHolder(vTextures);
+
+    let yup = 0;
+    textures.forEach(t => {
+        t.converted = convertTexture(t);
+        if (t.converted) {
+            vTextures.push(textureToCanvas(t)!);
+            fth.textureNames.push(t.path);
+            t.gfxTexture = makeGraphicsTexture(device, t.converted);
+            if (t.gfxTexture != null) yup++
+        }
+    })
+    console.log(`Yup count: ${yup}/${textures.length}`)
+    return fth;
 }
