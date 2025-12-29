@@ -23,6 +23,8 @@ impl FFXIVLgb {
     pub fn parse(data: Vec<u8>) -> FFXIVLgb {
         let lgb = LayerGroup::from_existing(data.as_slice()).unwrap();
         let layers = lgb.chunks.iter().flat_map(|x| &x.layers);
+        // TODO filter festivals
+        let layers = layers.filter(|x| x.header.festival_id == 0);
         let objs = layers.flat_map(|x| &x.objects);
 
         let mut models: Vec<String> = vec![];
