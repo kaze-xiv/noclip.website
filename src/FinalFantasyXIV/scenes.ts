@@ -7,7 +7,7 @@ import { FFXIVRenderer, processTextures } from "./render";
 import { range } from "../MathHelpers";
 import { Terrain } from "./Terrain";
 import ArrayBufferSlice from "../ArrayBufferSlice";
-import { Texture } from "./Texture";
+import { Texture, TextureFormat } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
 import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
 
@@ -57,6 +57,20 @@ class FFXIVMapDesc implements SceneDesc {
         // discover textures
         const textureNames = new Set<string>(materials.flatMap(m => m.get_texture_names()));
         const textures = await Promise.all([...textureNames.values()].map(t => this.loadTexture(dataFetcher, t)));
+        // for (let i = 0; i < textures.length; i++) {
+        //     const texture = textures[i];
+        //     if (texture.format == TextureFormat.BC7) { // no sw decoder in lib unfortunately
+        //         const req = rust.FFXIVTexture.decode_bc7(new Uint8Array(texture.buffer.arrayBuffer)).buffer;
+        //         texture.converted = {
+        //             type: "RGBA",
+        //             depth: texture.depth,
+        //             pixels: new Uint8Array<ArrayBuffer>(req as ArrayBuffer),
+        //             flag: "SRGB",
+        //             height: texture.height,
+        //             width: texture.width,
+        //         };
+        //     }
+        // }
 
         const vTextures = processTextures(device, textures);
 

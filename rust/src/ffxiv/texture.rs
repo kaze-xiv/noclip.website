@@ -1,19 +1,14 @@
-use ironworks::file::tex::Texture;
+use physis::tex::Texture;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 pub struct FFXIVTexture {
-    inner: Texture,
 }
 
-// impl FFXIVTexture {
-//     pub fn parse(data: Vec<u8>) -> FFXIVTexture {
-//         let cursor = Cursor::new(data);
-//         let container: Texture = ironworks::file::File::read(cursor).unwrap();
-//         container.
-//         let model = container.model(Lod::High);
-//         FFXIVModel {
-//             inner: model,
-//         }
-//     }
-// }
+#[wasm_bindgen]
+impl FFXIVTexture {
+    pub fn decode_bc7(tex_file_data: Vec<u8>) -> Vec<u8> {
+        let x = Texture::from_existing(tex_file_data.as_slice()).unwrap();
+        x.rgba
+    }
+}
