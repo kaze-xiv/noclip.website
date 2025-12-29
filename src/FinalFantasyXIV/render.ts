@@ -23,6 +23,7 @@ import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import { convertTexture, makeGraphicsTexture, Texture } from "./Texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import ArrayBufferSlice from "../ArrayBufferSlice";
+import { TextureListHolder } from "../ui";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -273,7 +274,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
     globals: RenderGlobals;
 
-    public textureHolder: FakeTextureHolder;
+    public textureHolder: TextureListHolder;
 
     constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem) {
         this.globals = new RenderGlobals(device, filesystem, terrain)
@@ -288,15 +289,19 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     private loadTextures() {
         const textures: Viewer.Texture[] = [];
         this.textureHolder = new FakeTextureHolder(textures);
+
         let yup = 0;
         this.globals.filesystem.textures.forEach(t => {
             t.converted = convertTexture(t);
             if (t.converted) {
                 textures.push(textureToCanvas(t)!);
+                this.textureHolder.textureNames.push(t.path)
                 t.gfxTexture = makeGraphicsTexture(this.globals.renderHelper.device, t.converted);
                 if (t.gfxTexture != null) yup++
             }
         })
+        console.log(this.textureHolder)
+
         console.log(`Yup count: ${yup}/${this.globals.filesystem.textures.length}`)
     }
 
