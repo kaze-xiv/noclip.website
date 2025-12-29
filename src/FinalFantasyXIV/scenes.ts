@@ -32,7 +32,7 @@ class FFXIVMapDesc implements SceneDesc {
         const dataFetcher = context.dataFetcher;
         const mapBase = `${this.id}`;
         const tera = await this.loadTerrainFile(dataFetcher, mapBase);
-        const materialNames = new Set<string>(tera.models.flatMap(m => range(0, m.count_meshes()).map(i => m.get_material(i))));
+        const materialNames = new Set<string>(tera.models.flatMap(m => m.meshes.map(mesh => m.materials[mesh.get_material_index()])));
         const materials = await Promise.all([...materialNames.values()].map(mat => this.loadMaterial(dataFetcher, mat)));
         (window as any).shaders = [...new Set(materials.map(m => m.get_shader_name()))];
         (window as any).testMaterial = materials[0].get_texture_names();

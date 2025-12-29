@@ -46,10 +46,8 @@ anyhow = "1.0.99"
 #ironworks = {version = "0.4.1", features = ["excel", "ffxiv", "sqpack", "mdl"]}
 ironworks = { path = "/data/Projects/ironworks/ironworks", features = ["excel", "sqpack", "mdl", "tex", "mtrl"] }
 #ironworks_sheets = {git = "https://github.com/kaze-xiv/ironworks", branch = "sheets/saint-coinach"}
+physis = "0.5"
+
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(wasm_bindgen_unstable_test_coverage)'] }
-
-[[bin]]
-name = "model_test"
-path = "src/ffxiv/model.rs"
