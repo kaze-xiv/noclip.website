@@ -1,18 +1,15 @@
 import { SceneContext, SceneDesc, SceneGroup } from "../SceneBase";
 import { GfxDevice } from "../gfx/platform/GfxPlatform";
 import { SceneGfx } from "../viewer";
-import { MeleeRenderer } from "../SuperSmashBrosMelee/Scenes_SuperSmashBrosMelee";
 
 import { rust } from '../rustlib.js';
 import { FFXIVRenderer, processTextures } from "./render";
 import { range } from "../MathHelpers";
-import { leftPad } from "../util";
 import { Terrain } from "./Terrain";
 import ArrayBufferSlice from "../ArrayBufferSlice";
 import { Texture } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
 import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
-import { FakeTextureHolder } from "../TextureHolder";
 
 const pathBase = "FFXIV"
 
@@ -46,7 +43,7 @@ class FFXIVMapDesc implements SceneDesc {
             // "planevent.lgb"
         ];
         const lgb = await Promise.all(lgbNames.map(lgb => this.loadLgb(dataFetcher, `${mapBase}/level/${lgb}`)));
-        const modelPathssInLgb = [...new Set(lgb.flatMap(l => l.discover_models()))];
+        const modelPathssInLgb = [...new Set(lgb.flatMap(l => l.discoveredModels))];
         const modelsInLgb = await Promise.all([...modelPathssInLgb.values()].map(model => this.loadPart(dataFetcher, model)));
         const materialsInModelsInLgb = modelsInLgb.flatMap(model => model?.meshes?.map(mesh => model.materials[mesh.get_material_index()]) ?? []);
         for (let i = 0; i < materialsInModelsInLgb.length; i++) {
@@ -63,7 +60,8 @@ class FFXIVMapDesc implements SceneDesc {
 
         const vTextures = processTextures(device, textures);
 
-        const scene = new FFXIVRenderer(device, tera, this.filesystem);
+        // debugger;
+        const scene = new FFXIVRenderer(device, tera, this.filesystem, lgb);
         scene.textureHolder = vTextures;
         return scene;
     }
