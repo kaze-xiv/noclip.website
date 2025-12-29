@@ -13,24 +13,24 @@ pub struct FFXIVModel {
 }
 
 impl FFXIVModel {
-    pub fn parse(data: Vec<u8>) -> FFXIVModel {
+    pub fn parse(data: Vec<u8>) -> Option<FFXIVModel> {
         convert_mdl(data)
     }
 }
 
-fn convert_mdl(data: Vec<u8>) -> FFXIVModel {
-    let mut mdl = MDL::from_existing(data.as_slice()).unwrap();
+fn convert_mdl(data: Vec<u8>) -> Option<FFXIVModel> {
+    let mut mdl = MDL::from_existing(data.as_slice())?;
 
     let lod = mdl.lods.remove(0);
     let parts = lod.parts;
     let materials = mdl.material_names;
-    FFXIVModel {
+    Some(FFXIVModel {
         meshes: parts
             .into_iter()
             .map(|x| MeshWrapper { physis: x })
             .collect(),
         materials: materials,
-    }
+    })
 }
 
 #[wasm_bindgen]

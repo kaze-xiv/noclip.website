@@ -7,13 +7,12 @@ export class Terrain {
     public plateSize: number;
     public plateCount: number;
 
-    public models: FFXIVModel[];
+    public models: (FFXIVModel | null)[];
 
     constructor(private buffer: ArrayBufferSlice) {
         const view = this.buffer.createDataView();
         this.plateCount = view.getUint32(4, true);
         this.plateSize = view.getUint32(8, true);
-
     }
 
     public getPlatePosition(out: vec2, index: number) {
