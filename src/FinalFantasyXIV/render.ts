@@ -21,7 +21,6 @@ import { range } from "../MathHelpers";
 import { FFXIVFilesystem } from "./scenes";
 import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import { convertTexture, makeGraphicsTexture, Texture } from "./Texture";
-import { translateToGfxTexture } from "../Common/N64/RDP";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import ArrayBufferSlice from "../ArrayBufferSlice";
 
@@ -274,6 +273,8 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
     globals: RenderGlobals;
 
+    public textureHolder: FakeTextureHolder;
+
     constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem) {
         this.globals = new RenderGlobals(device, filesystem, terrain)
 
@@ -286,7 +287,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
     private loadTextures() {
         const textures: Viewer.Texture[] = [];
-        const textureHolder = new FakeTextureHolder(textures);
+        this.textureHolder = new FakeTextureHolder(textures);
         let yup = 0;
         this.globals.filesystem.textures.forEach(t => {
             t.converted = convertTexture(t);
@@ -297,7 +298,6 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
             }
         })
         console.log(`Yup count: ${yup}/${this.globals.filesystem.textures.length}`)
-        console.log(textureHolder)
     }
 
     public adjustCameraController(c: CameraController) {
