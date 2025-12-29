@@ -1,4 +1,4 @@
-import { mat4, vec2, vec3 } from 'gl-matrix';
+import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
@@ -205,6 +205,7 @@ const randomColorMap: { [name: string]: Color } = {};
 
 const vec3scratch = vec3.create();
 const vec2scratch = vec2.create();
+const vec4scratch = vec4.create();
 
 export class TerrainModelRenderer {
     public meshRenderers: MeshRenderer[] = [];
@@ -251,6 +252,7 @@ export class TerrainModelRenderer {
 
 type LayoutObjectRenderer = BgLayerObjectRenderer | null;
 
+
 export class BgLayerObjectRenderer {
 
     public meshRenderers: MeshRenderer[] = [];
@@ -284,7 +286,9 @@ export class BgLayerObjectRenderer {
     }
 
     calculateModelMatrix() {
-        mat4.fromRotationTranslationScale(this.modelMatrix, this.obj.translation, this.obj.rotation, this.obj.scale);
+        // debugger;
+        quat.fromEuler(vec4scratch, this.obj.rotation[0] / Math.PI * 180, this.obj.rotation[1] / Math.PI *180, this.obj.rotation[2] / Math.PI *180);
+        mat4.fromRotationTranslationScale(this.modelMatrix, vec4scratch, this.obj.translation, this.obj.scale);
     }
 
     public destroy() {
@@ -297,10 +301,9 @@ export class LgbRenderer {
     public objectRenderers: (LayoutObjectRenderer | null)[] = [];
 
     constructor(public globals: RenderGlobals, public lgb: FFXIVLgb, public lgbIndex: number) {
-        debugger;
         const objs = lgb.objects;
         for (let i = 0; i < objs.length; i++) {
-            if (i > 500) break;
+            if (i > 20000) break;
             const obj = objs[i];
             if (obj.layer_type == 0x01) {
                 const mdlLookup = globals.filesystem[obj.asset_name!] as (FFXIVModel | null);
@@ -312,7 +315,6 @@ export class LgbRenderer {
                 this.objectRenderers.push(null);
             }
         }
-        debugger;
     }
 
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
