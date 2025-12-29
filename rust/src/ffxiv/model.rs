@@ -1,178 +1,84 @@
-use std::collections::HashMap;
-use std::fs;
+use crate::ffxiv::wasm::VertexWrapper;
+use deku::writer::Writer;
+use deku::DekuWriter;
+use physis::model::{Part, MDL};
 use std::io::Cursor;
-use ironworks::file;
-use ironworks::file::mdl::{Lod, Mesh, Model, ModelContainer, VertexAttribute, VertexAttributeKind, VertexValues};
-use ironworks::file::mdl::structs::VertexFormat;
-use ironworks::file::mdl::VertexAttributeKind::{Normal, Position};
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen]
+#[wasm_bindgen(getter_with_clone)]
+#[derive(Clone)]
 pub struct FFXIVModel {
-    inner: Model,
+    pub meshes: Vec<MeshWrapper>,
+    pub materials: Vec<String>,
 }
 
 impl FFXIVModel {
     pub fn parse(data: Vec<u8>) -> FFXIVModel {
-        let cursor = Cursor::new(data);
-        let container: ModelContainer = ironworks::file::File::read(cursor).unwrap();
-        let model = container.model(Lod::High);
-        FFXIVModel {
-            inner: model,
-        }
+        convert_mdl(data)
+    }
+}
+
+fn convert_mdl(data: Vec<u8>) -> FFXIVModel {
+    let mut mdl = MDL::from_existing(data.as_slice()).unwrap();
+
+    let lod = mdl.lods.remove(0);
+    let parts = lod.parts;
+    let materials = mdl.material_names;
+    FFXIVModel {
+        meshes: parts
+            .into_iter()
+            .map(|x| MeshWrapper { physis: x })
+            .collect(),
+        materials: materials,
     }
 }
 
 #[wasm_bindgen]
-impl FFXIVModel {
-    #[wasm_bindgen]
-    pub fn get_material(&self, index: u32) -> String {
-        self.inner.meshes()[index as usize].material().unwrap()
-    }
-
-    #[wasm_bindgen]
-    pub fn count_meshes(&self) -> u32 {
-        self.inner.meshes().iter().count() as u32
-    }
-
-    #[wasm_bindgen]
-    pub fn meshes(&self) -> Vec<MeshWrapper> {
-        self.inner.meshes().into_iter().map(|x| MeshWrapper {
-            inner: x,
-        }).collect()
-    }
-
-    #[wasm_bindgen]
-    pub fn get_triangles(&self, index: u32) -> Vec<u16> {
-        self.inner.meshes()[index as usize].indices().unwrap()
-    }
-}
+impl FFXIVModel {}
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct MeshWrapper {
-    inner: Mesh,
+    physis: Part,
 }
 
 #[wasm_bindgen]
 impl MeshWrapper {
-
-    pub fn get_material(&self) -> String {
-        self.inner.material().unwrap()
+    pub fn get_material_index(&self) -> u16 {
+        self.physis.material_index
     }
 
-    pub fn get_position_format(&self) -> u8  {
-        let mut x: HashMap<VertexAttributeKind, (VertexFormat, Vec<u8>)> = self.inner.dirty_attributes();
-        x.remove(&VertexAttributeKind::Position).unwrap().0 as u8
+    pub fn indices(&self) -> Vec<u16> {
+        self.physis.indices.clone()
     }
-    pub fn get_position_buffer_f32(&self) -> Vec<f32> {
-        let attr = self.inner.attributes().unwrap();
-        let x = attr.iter().find(|x| x.kind == Position).unwrap();
-        flatten_values(&x.values)
+
+    pub fn debug_vertices(&self) -> String {
+        format!("{:?}", self.physis.vertices)
     }
-    pub fn get_normal_buffer_f32(&self) -> Vec<f32> {
-        let attr = self.inner.attributes().unwrap();
-        let x = attr.iter().find(|x| x.kind == Normal).unwrap();
-        flatten_values(&x.values)
-    }
-    pub fn get_position_buffer(&self) -> Vec<u8> {
-        // let mut x: HashMap<VertexAttributeKind, (VertexFormat, Vec<u8>)> = self.inner.dirty_attributes();
-        // x.remove(&VertexAttributeKind::Position).unwrap().1
-        let attr = self.inner.attributes().unwrap();
-        let x = attr.iter().find(|x| x.kind == Position).unwrap();
-        match &x.values {
-            VertexValues::Uint(u) => {
-                let mut bytes = Vec::with_capacity(4 * u.len());
 
-                for value in u {
-                    bytes.extend(&value.to_le_bytes());
-                }
+    pub fn attributes(&self) -> Vec<u8> {
+        let size = 23 * 4;
+        let mut vec: Vec<u8> = Vec::with_capacity(size * self.physis.vertices.len());
+        let mut cursor = Cursor::new(&mut vec);
+        let mut writer = Writer::new(cursor);
 
-                bytes
-            },
-            VertexValues::Vector2(v2) => {
-                let mut bytes: Vec<u8> = Vec::with_capacity(64 * v2.len());
-
-                for value in v2 {
-                    bytes.extend(value[0].to_le_bytes());
-                    bytes.extend(value[1].to_le_bytes());
-                }
-
-                bytes
-            }
-            VertexValues::Vector3(v3) => {
-                let mut bytes: Vec<u8> = Vec::with_capacity(72 * v3.len());
-
-                for value in v3 {
-                    bytes.extend(value[0].to_le_bytes());
-                    bytes.extend(value[1].to_le_bytes());
-                    bytes.extend(value[2].to_le_bytes());
-                }
-
-                bytes
-            }
-            VertexValues::Vector4(v4) => {
-                let mut bytes: Vec<u8> = Vec::with_capacity(128 * v4.len());
-
-                for value in v4 {
-                    bytes.extend(value[0].to_le_bytes());
-                    bytes.extend(value[1].to_le_bytes());
-                }
-
-                bytes
-            }
+        for vert in self.physis.vertices.iter() {
+            vert.position.to_writer(&mut writer, ()).unwrap();
+            vert.uv0.to_writer(&mut writer, ()).unwrap();
+            vert.uv1.to_writer(&mut writer, ()).unwrap();
+            vert.normal.to_writer(&mut writer, ()).unwrap();
+            vert.bitangent.to_writer(&mut writer, ()).unwrap();
+            vert.color.to_writer(&mut writer, ()).unwrap();
+            vert.bone_weight.to_writer(&mut writer, ()).unwrap();
+            vert.bone_id.to_writer(&mut writer, ()).unwrap();
         }
+        vec
     }
-
-    pub fn get_normal_format(&self) -> u8 {
-        let mut x: HashMap<VertexAttributeKind, (VertexFormat, Vec<u8>)> = self.inner.dirty_attributes();
-        x.remove(&VertexAttributeKind::Normal).unwrap().0 as u8
-    }
-    pub fn get_normal_buffer(&self) -> Vec<u8> {
-        let mut x: HashMap<VertexAttributeKind, (VertexFormat, Vec<u8>)> = self.inner.dirty_attributes();
-        x.remove(&VertexAttributeKind::Normal).unwrap().1
-    }
-}
-
-pub fn main() {
-    let data = fs::read("/data/Projects/noclip.website/rust/out/bg/ffxiv/sea_s1/twn/s1t1/bgplate/0014.mdl").unwrap();
-    let cursor = Cursor::new(data);
-    let container: ModelContainer = file::File::read(cursor).unwrap();
-    let model = container.model(Lod::High);
-    let meshes = model.meshes();
-    let mesh = meshes.get(2).unwrap();
-    let dirty = mesh.dirty_attributes();
-    println!("{:?}", dirty.get(&Position).unwrap());
-
-    let test = mesh.attributes().unwrap();
-    let real = test.iter().find(|x| x.kind == Position).unwrap();
-    println!("{:?}", real);
-}
-
-fn flatten_values(values: &VertexValues) -> Vec<f32> {
-    match values {
-        VertexValues::Vector2(v2) => {
-            let mut bytes: Vec<f32> = Vec::with_capacity(2 * v2.len());
-            for value in v2 {
-                bytes.extend(value);
-            }
-            bytes
-        }
-        VertexValues::Vector3(v3) => {
-            let mut bytes: Vec<f32> = Vec::with_capacity(3 * v3.len());
-            for value in v3 {
-                bytes.extend(value);
-            }
-            bytes
-        }
-        VertexValues::Vector4(v4) => {
-            let mut bytes: Vec<f32> = Vec::with_capacity(4 * v4.len());
-
-            for value in v4 {
-                bytes.extend(value);
-            }
-
-            bytes
-        }
-        _ => todo!()
+    pub fn vertices(&self) -> Vec<VertexWrapper> {
+        self.physis
+            .vertices
+            .iter()
+            .map(|&x| VertexWrapper { inner: x })
+            .collect()
     }
 }
