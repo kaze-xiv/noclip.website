@@ -1,7 +1,6 @@
-use ironworks::file::mdl::ModelContainer;
+use crate::ffxiv::model::FFXIVModel;
 use physis::model::Vertex;
 use wasm_bindgen::prelude::wasm_bindgen;
-use crate::ffxiv::model::FFXIVModel;
 
 #[wasm_bindgen]
 pub struct FFXIVSceneManager {

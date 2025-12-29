@@ -1,6 +1,5 @@
-use std::io::Cursor;
-use ironworks::file::mdl::{Lod, ModelContainer};
 use ironworks::file::mtrl::Material;
+use std::io::Cursor;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]

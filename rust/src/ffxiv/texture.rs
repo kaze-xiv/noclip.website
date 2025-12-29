@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use ironworks::file::tex::Texture;
 use wasm_bindgen::prelude::wasm_bindgen;
 

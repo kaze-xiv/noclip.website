@@ -12,7 +12,7 @@ import { CameraController, computeViewMatrix } from '../Camera.js';
 import { GfxrAttachmentSlot } from '../gfx/render/GfxRenderGraph.js';
 import { GfxShaderLibrary } from '../gfx/helpers/GfxShaderLibrary.js';
 import { createBufferFromData } from '../gfx/helpers/BufferHelpers.js';
-import { FFXIVMaterial, FFXIVModel, MeshWrapper } from "../../rust/pkg";
+import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FlatLayoutObject, MeshWrapper } from "../../rust/pkg";
 import { Color, colorNewFromRGBA } from "../Color";
 import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpers/TopologyHelpers";
 import { drawWorldSpacePoint, getDebugOverlayCanvas2D } from "../DebugJunk";
@@ -101,35 +101,18 @@ export class MeshRenderer {
     public indexBufferDescriptor: GfxIndexBufferDescriptor;
 
     public drawCount: number;
-    public modelMatrix: mat4 = mat4.create();
 
     public triBytes: Uint16Array;
     public triBuffer: GfxBuffer;
 
-    public mesh: MeshWrapper;
 
     public textureMappings: (TextureMapping | null)[] = [];
 
 
     constructor(public globals: RenderGlobals,
-                public terrainModelRenderer: TerrainModelRenderer,
-                public submeshIndex: number) {
-        const mesh = this.mesh = terrainModelRenderer.meshes[submeshIndex];
-
-        if (terrainModelRenderer.modelIndex == 2 && submeshIndex == 2) {
-            console.log(mesh.debug_vertices())
-            const vs = mesh.vertices();
-            for (let i = 0; i < vs.length; i++) {
-                const v = vs[i];
-                console.log(v.uv0());
-                // const t = new Float32B
-                console.log(new Uint8Array((v.uv0() as any).buffer));
-            }
-        }
-
-        mat4.fromTranslation(this.modelMatrix, this.terrainModelRenderer.origin);
-
-        const materialName = terrainModelRenderer.model.materials[mesh.get_material_index()];
+                public materialName: string,
+                public mesh: MeshWrapper,
+                public modelMatrix: mat4) {
         const material = globals.filesystem[materialName] as FFXIVMaterial;
         const textures = material.get_texture_names().map(x => globals.filesystem[x] as Texture);
         const sampler = this.globals.renderHelper.renderCache.createSampler({
@@ -158,8 +141,6 @@ export class MeshRenderer {
             this.color = randomColorMap[materialName];
         }
 
-        // this.globals.rende
-
         const vertices = this.vertices = mesh.attributes();
         this.vertexBuffer = createBufferFromData(globals.renderHelper.device, GfxBufferUsage.Vertex, GfxBufferFrequencyHint.Static, vertices.buffer)
 
@@ -175,15 +156,15 @@ export class MeshRenderer {
     }
 
     public debugDrawVertices(viewerInput: Viewer.ViewerRenderInput) {
-        const view = new DataView(this.vertices.buffer);
-        const vec = vec3.create();
-        for (let i = 0; i < this.vertices.length / stride; i++) {
-            const start = stride * i;
-            vec3.set(vec, view.getFloat32(start + 0), view.getFloat32(start + 4), view.getFloat32(start + 8));
-            vec3.add(vec, vec, this.terrainModelRenderer.origin);
-            drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, this.color, 3);
-            // drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, `${i}`, 0, OpaqueBlack, {font: "12pt monospace"})
-        }
+        // const view = new DataView(this.vertices.buffer);
+        // const vec = vec3.create();
+        // for (let i = 0; i < this.vertices.length / stride; i++) {
+        //     const start = stride * i;
+        //     vec3.set(vec, view.getFloat32(start + 0), view.getFloat32(start + 4), view.getFloat32(start + 8));
+        //     vec3.add(vec, vec, this.terrainModelRenderer.origin);
+        //     drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, this.color, 3);
+        //     // drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, `${i}`, 0, OpaqueBlack, {font: "12pt monospace"})
+        // }
     }
 
     public prepareToRender(viewerInput: Viewer.ViewerRenderInput): void {
@@ -222,22 +203,28 @@ const bindingLayouts: GfxBindingLayoutDescriptor[] = [
 const randomColorMap: { [name: string]: Color } = {};
 (window as any).randomColorMap = randomColorMap;
 
+const vec3scratch = vec3.create();
+const vec2scratch = vec2.create();
+
 export class TerrainModelRenderer {
-    public meshRenderers: MeshRenderer[];
-    public origin: vec3 = vec3.create();
-    public modelMatrix: mat4 = mat4.create();
+    public meshRenderers: MeshRenderer[] = [];
     public meshes: MeshWrapper[] = [];
+    public modelMatrix: mat4 = mat4.create();
 
     constructor(public globals: RenderGlobals, public model: FFXIVModel, public modelIndex: number) {
         this.meshes = model.meshes;
-        this.meshRenderers = range(0, this.meshes.length).map(i => new MeshRenderer(globals, this, i));
-        const pos2D = vec2.create();
-        this.globals.terrain.getPlatePosition(pos2D, this.modelIndex);
-        vec3.set(this.origin, globals.terrain.plateSize * (pos2D[0] + 0.5), 0, globals.terrain.plateSize * (pos2D[1] + 0.5));
-        mat4.fromTranslation(this.modelMatrix, this.origin);
+        const materials = model.materials;
+
+        this.calculateModelMatrix();
+
+        for (let i = 0; i < this.meshes.length; i++) {
+            const mesh = this.meshes[i];
+            this.meshRenderers.push(new MeshRenderer(globals, materials[mesh.get_material_index()], mesh, this.modelMatrix))
+        }
     }
 
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
+        // TODO is this supposed to be here?
         const template = renderInstManager.getCurrentTemplate();
         let offs = template.allocateUniformBuffer(IVProgram.ub_SceneParams, 32);
         const mapped = template.mapUniformBufferF32(IVProgram.ub_SceneParams);
@@ -253,6 +240,100 @@ export class TerrainModelRenderer {
     destroy() {
         this.meshRenderers.forEach((r) => r.destroy());
     }
+
+    calculateModelMatrix() {
+        const terrain = this.globals.terrain;
+        terrain.getPlatePosition(vec2scratch, this.modelIndex);
+        vec3.set(vec3scratch, terrain.plateSize * (vec2scratch[0] + 0.5), 0, terrain.plateSize * (vec2scratch[1] + 0.5));
+        mat4.fromTranslation(this.modelMatrix, vec3scratch);
+    }
+}
+
+type LayoutObjectRenderer = BgLayerObjectRenderer | null;
+
+export class BgLayerObjectRenderer {
+
+    public meshRenderers: MeshRenderer[] = [];
+    public meshes: MeshWrapper[] = [];
+    public modelMatrix: mat4 = mat4.create();
+
+    constructor(public globals: RenderGlobals, public obj: FlatLayoutObject, public model: FFXIVModel, public modelIndex: number) {
+        this.meshes = this.model.meshes;
+        const materials = this.model.materials;
+
+        this.calculateModelMatrix();
+
+        for (let i = 0; i < this.meshes.length; i++) {
+            const mesh = this.meshes[i];
+            this.meshRenderers.push(new MeshRenderer(globals, materials[mesh.get_material_index()], mesh, this.modelMatrix))
+        }
+    }
+
+    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
+        // TODO is this supposed to be here?
+        const template = renderInstManager.getCurrentTemplate();
+        let offs = template.allocateUniformBuffer(IVProgram.ub_SceneParams, 32);
+        const mapped = template.mapUniformBufferF32(IVProgram.ub_SceneParams);
+        offs += fillMatrix4x4(mapped, offs, viewerInput.camera.projectionMatrix);
+        computeViewMatrix(modelViewScratch, viewerInput.camera);
+        mat4.mul(modelViewScratch, modelViewScratch, this.modelMatrix);
+        offs += fillMatrix4x3(mapped, offs, modelViewScratch);
+
+        for (let i = 0; i < this.meshRenderers.length; i++)
+            this.meshRenderers[i].prepareToRender(viewerInput);
+    }
+
+    calculateModelMatrix() {
+        mat4.fromRotationTranslationScale(this.modelMatrix, this.obj.translation, this.obj.rotation, this.obj.scale);
+    }
+
+    public destroy() {
+
+    }
+}
+
+export class LgbRenderer {
+    public modelMatrix: mat4 = mat4.create();
+    public objectRenderers: (LayoutObjectRenderer | null)[] = [];
+
+    constructor(public globals: RenderGlobals, public lgb: FFXIVLgb, public lgbIndex: number) {
+        debugger;
+        const objs = lgb.objects;
+        for (let i = 0; i < objs.length; i++) {
+            if (i > 500) break;
+            const obj = objs[i];
+            if (obj.layer_type == 0x01) {
+                const mdlLookup = globals.filesystem[obj.asset_name!] as (FFXIVModel | null);
+                if (mdlLookup) {
+                    this.objectRenderers.push(new BgLayerObjectRenderer(globals, obj, mdlLookup, i));
+                }
+            }
+            else {
+                this.objectRenderers.push(null);
+            }
+        }
+        debugger;
+    }
+
+    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
+        // const template = renderInstManager.getCurrentTemplate();
+        // let offs = template.allocateUniformBuffer(IVProgram.ub_SceneParams, 32);
+        // const mapped = template.mapUniformBufferF32(IVProgram.ub_SceneParams);
+        // offs += fillMatrix4x4(mapped, offs, viewerInput.camera.projectionMatrix);
+        // computeViewMatrix(modelViewScratch, viewerInput.camera);
+        // mat4.mul(modelViewScratch, modelViewScratch, this.modelMatrix);
+        // offs += fillMatrix4x3(mapped, offs, modelViewScratch);
+
+        for (let i = 0; i < this.objectRenderers.length; i++) {
+            const renderer = this.objectRenderers[i]
+            if (renderer)
+                renderer.prepareToRender(renderInstManager, viewerInput);
+        }
+    }
+
+    destroy() {
+        this.objectRenderers.forEach((r) => r?.destroy());
+    }
 }
 
 export class RenderGlobals {
@@ -263,7 +344,7 @@ export class RenderGlobals {
     public renderInstListMain = new GfxRenderInstList();
     public layout: GfxInputLayout;
 
-    constructor(device: GfxDevice, public filesystem: FFXIVFilesystem, public terrain: Terrain) {
+    constructor(device: GfxDevice, public filesystem: FFXIVFilesystem, public terrain: Terrain, public lgbs: FFXIVLgb[]) {
         this.renderHelper = new GfxRenderHelper(device);
         this.renderInstManager = this.renderHelper.renderInstManager;
         this.meshGfxProgram = this.renderHelper.renderCache.createProgram(this.meshProgram);
@@ -299,19 +380,23 @@ export class RenderGlobals {
 
 export class FFXIVRenderer implements Viewer.SceneGfx {
     private modelRenderers: (TerrainModelRenderer | null)[] = [];
+    private lgbRenderers: (LgbRenderer | null)[] = [];
 
     globals: RenderGlobals;
 
     public textureHolder: TextureListHolder;
 
-    constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem) {
-        this.globals = new RenderGlobals(device, filesystem, terrain)
+    constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem, lgbs: FFXIVLgb[]) {
+        this.globals = new RenderGlobals(device, filesystem, terrain, lgbs)
 
         this.modelRenderers = range(0, terrain.plateCount).map(i => {
             const model = this.globals.terrain.models[i];
             if (!model) return null;
             return new TerrainModelRenderer(this.globals, model, i);
         });
+
+        for(let i = 0; i < lgbs.length; i++)
+            this.lgbRenderers.push(new LgbRenderer(this.globals, lgbs[i], i));
     }
 
     public adjustCameraController(c: CameraController) {
@@ -330,6 +415,10 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
         for (let i = 0; i < this.modelRenderers.length; i++)
             this.modelRenderers[i]!.prepareToRender(renderHelper.renderInstManager, viewerInput);
+
+        for (let i = 0; i < this.lgbRenderers.length; i++)
+            this.lgbRenderers[i]!.prepareToRender(renderHelper.renderInstManager, viewerInput);
+
 
         renderHelper.renderInstManager.popTemplate();
         renderHelper.prepareToRender();
