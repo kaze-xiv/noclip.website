@@ -89,7 +89,8 @@ void mainPS() {
 #endif
 `;
 }
-const stride = 23*4;
+
+const stride = 23 * 4;
 
 export class MeshRenderer {
     public name: string;
@@ -116,13 +117,13 @@ export class MeshRenderer {
         const material = globals.filesystem[materialName] as FFXIVMaterial;
         const textures = material.get_texture_names().map(x => globals.filesystem[x] as Texture);
         const sampler = this.globals.renderHelper.renderCache.createSampler({
-                    wrapS: GfxWrapMode.Repeat,
-                    wrapT: GfxWrapMode.Repeat,
-                    minFilter: GfxTexFilterMode.Point,
-                    magFilter: GfxTexFilterMode.Point,
-                    mipFilter: GfxMipFilterMode.Nearest,
-                    minLOD: 0, maxLOD: 0,
-                });
+            wrapS: GfxWrapMode.Repeat,
+            wrapT: GfxWrapMode.Repeat,
+            minFilter: GfxTexFilterMode.Point,
+            magFilter: GfxTexFilterMode.Point,
+            mipFilter: GfxMipFilterMode.Nearest,
+            minLOD: 0, maxLOD: 0,
+        });
         this.textureMappings = textures.map(t => {
             if (t.gfxTexture == null) return null;
             const mapping = new TextureMapping();
@@ -287,7 +288,7 @@ export class BgLayerObjectRenderer {
 
     calculateModelMatrix() {
         // debugger;
-        quat.fromEuler(vec4scratch, this.obj.rotation[0] / Math.PI * 180, this.obj.rotation[1] / Math.PI *180, this.obj.rotation[2] / Math.PI *180);
+        quat.fromEuler(vec4scratch, this.obj.rotation[0] / Math.PI * 180, this.obj.rotation[1] / Math.PI * 180, this.obj.rotation[2] / Math.PI * 180);
         mat4.fromRotationTranslationScale(this.modelMatrix, vec4scratch, this.obj.translation, this.obj.scale);
     }
 
@@ -310,8 +311,7 @@ export class LgbRenderer {
                 if (mdlLookup) {
                     this.objectRenderers.push(new BgLayerObjectRenderer(globals, obj, mdlLookup, i));
                 }
-            }
-            else {
+            } else {
                 this.objectRenderers.push(null);
             }
         }
@@ -357,10 +357,30 @@ export class RenderGlobals {
         const vec3fSize = 3 * 4;
         const vec2fSize = 2 * 4;
         const vertexAttributeDescriptors: GfxVertexAttributeDescriptor[] = [];
-        vertexAttributeDescriptors.push({ location: IVProgram.a_Position, bufferIndex: 0, bufferByteOffset: 0, format: GfxFormat.F32_RGB});
-        vertexAttributeDescriptors.push({ location: IVProgram.a_TexCoord0, bufferIndex: 0, bufferByteOffset: 1 * vec3fSize, format: GfxFormat.F32_RGB});
-        vertexAttributeDescriptors.push({ location: IVProgram.a_TexCoord1, bufferIndex: 0, bufferByteOffset: 1 * vec3fSize + 1 * vec2fSize, format: GfxFormat.F32_RGB});
-        vertexAttributeDescriptors.push({ location: IVProgram.a_Normal, bufferIndex: 0, bufferByteOffset: 1 * vec3fSize + 2 * vec2fSize, format: GfxFormat.F32_RGB});
+        vertexAttributeDescriptors.push({
+            location: IVProgram.a_Position,
+            bufferIndex: 0,
+            bufferByteOffset: 0,
+            format: GfxFormat.F32_RGB
+        });
+        vertexAttributeDescriptors.push({
+            location: IVProgram.a_TexCoord0,
+            bufferIndex: 0,
+            bufferByteOffset: 1 * vec3fSize,
+            format: GfxFormat.F32_RGB
+        });
+        vertexAttributeDescriptors.push({
+            location: IVProgram.a_TexCoord1,
+            bufferIndex: 0,
+            bufferByteOffset: 1 * vec3fSize + 1 * vec2fSize,
+            format: GfxFormat.F32_RGB
+        });
+        vertexAttributeDescriptors.push({
+            location: IVProgram.a_Normal,
+            bufferIndex: 0,
+            bufferByteOffset: 1 * vec3fSize + 2 * vec2fSize,
+            format: GfxFormat.F32_RGB
+        });
 
         const vertexBufferDescriptors: GfxInputLayoutBufferDescriptor[] = [
             {byteStride: stride, frequency: GfxVertexBufferFrequency.PerVertex,},
@@ -397,7 +417,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
             return new TerrainModelRenderer(this.globals, model, i);
         });
 
-        for(let i = 0; i < lgbs.length; i++)
+        for (let i = 0; i < lgbs.length; i++)
             this.lgbRenderers.push(new LgbRenderer(this.globals, lgbs[i], i));
     }
 
@@ -475,16 +495,18 @@ export function processTextures(device: GfxDevice, textures: Texture[]): FakeTex
     const vTextures: Viewer.Texture[] = [];
     const fth = new FakeTextureHolder(vTextures);
 
-    let yup = 0;
     textures.forEach(t => {
         t.converted = convertTexture(t);
         if (t.converted) {
             vTextures.push(textureToCanvas(t)!);
             fth.textureNames.push(t.path);
             t.gfxTexture = makeGraphicsTexture(device, t.converted);
-            if (t.gfxTexture != null) yup++
+            if (t.gfxTexture == null) {
+                console.log(`Failed to make texture for ${t.format}`)
+            }
+        } else {
+            console.log(`Failed to make texture for ${t.format}`)
         }
     })
-    console.log(`Yup count: ${yup}/${textures.length}`)
     return fth;
 }
