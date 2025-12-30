@@ -3,8 +3,10 @@ use std::io::Cursor;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
+#[wasm_bindgen(getter_with_clone)]
 pub struct FFXIVMaterial {
-    inner: Material
+    pub texture_names: Vec<String>,
+    pub shader_name: String,
 }
 
 #[wasm_bindgen]
@@ -15,17 +17,8 @@ impl FFXIVMaterial {
         let mat: Material = ironworks::file::File::read(cursor).unwrap();
 
         FFXIVMaterial {
-            inner: mat,
+            texture_names: mat.samplers().into_iter().map(|s| s.texture()).collect(),
+            shader_name: mat.shader().to_string(),
         }
     }
-
-    #[wasm_bindgen]
-    pub fn get_texture_names(&self) -> Vec<String> {
-        self.inner.samplers().into_iter().map(|s| s.texture()).collect()
-    }
-
-    #[wasm_bindgen]
-    pub fn get_shader_name(&self) -> String { self.inner.shader().to_string() }
-    // #[wasm_bindgen]
-    // pub fn get_samplers(&self) -> String { self.inner.shader().to_string() }
 }
