@@ -3,7 +3,7 @@ use physis::layer::{InstanceObject, LayerEntryData, LayerGroup};
 use physis::sgb::Sgb;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen(getter_with_clone)]
+#[serde_wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct FFXIVLgb {
     pub discoveredModels: Vec<String>,
