@@ -61,17 +61,33 @@ class FFXIVMapDesc implements SceneDesc {
         console.timeEnd("Load LGB")
 
         console.time("Load SGB")
-        const sgbFiles = new Set(lgb.flatMap(l => l.discoveredSgbs));
-        console.log("Discovered", sgbFiles.size, "sgb files in lgbs");
-        const sgb = await Promise.all([...sgbFiles].map(sgb => this.loadSgb(dataFetcher, sgb)));
-        const modelPathsInSgb = [...new Set(sgb.flatMap(l => l?.discoveredModels ?? []))];
-        console.log("Discovered", modelPathsInSgb.length, "model files in sgbs");
-        const modelsInSgb = await Promise.all([...modelPathsInSgb.values()].map(model => this.loadPart(dataFetcher, model)));
-        const materialsInModelsInSgb = modelsInSgb.flatMap(model => model?.meshes?.map(mesh => model.materials[mesh.get_material_index()]) ?? []);
-        for (let i = 0; i < materialsInModelsInSgb.length; i++) {
-            materialNames.add(materialsInModelsInSgb[i]);
+        const loadedSgbFiles = new Set<string>();
+        let sgbFiles = new Set(lgb.flatMap(l => l.discoveredSgbs));
+        let foundMore = true;
+        while (foundMore) {
+            foundMore = false;
+            console.log("Discovered", sgbFiles.size, "sgb files in lgbs");
+            const sgbF = [...sgbFiles];
+            for (let i = 0; i < sgbF.length; i++) {
+                loadedSgbFiles.add(sgbF[i]);
+            }
+            const sgb = await Promise.all([...sgbFiles].map(sgb => this.loadSgb(dataFetcher, sgb)));
+            const modelPathsInSgb = [...new Set(sgb.flatMap(l => l?.discoveredModels ?? []))];
+            console.log("Discovered", modelPathsInSgb.length, "model files in sgbs");
+            const modelsInSgb = await Promise.all([...modelPathsInSgb.values()].map(model => this.loadPart(dataFetcher, model)));
+            const materialsInModelsInSgb = modelsInSgb.flatMap(model => model?.meshes?.map(mesh => model.materials[mesh.get_material_index()]) ?? []);
+            for (let i = 0; i < materialsInModelsInSgb.length; i++) {
+                materialNames.add(materialsInModelsInSgb[i]);
+            }
+
+            const moreSgb = new Set<string>(sgb.flatMap(s => s?.discoveredSgbs ?? []));
+            const notDone = ((moreSgb as any).difference)(loadedSgbFiles)  as Set<string>;
+            if (notDone.size > 0) {
+                sgbFiles = notDone;
+                foundMore = true;
+            }
+
         }
-        // what if we find more loll
         console.timeEnd("Load SGB")
 
         console.time("Load materials");
@@ -129,6 +145,8 @@ class FFXIVMapDesc implements SceneDesc {
     }
 
     private async loadPart(dataFetcher: DataFetcher, path: string): Promise<FFXIVModel | null> {
+        const exists = this.filesystem.models.get(path)
+        if (exists) return exists;
         const data = await dataFetcher.fetchData(`${pathBase}/${path}`, {allow404: true});
         const model = rust.FFXIVSceneManager.parse_mdl(new Uint8Array(data.arrayBuffer));
         if (!model) return null;
