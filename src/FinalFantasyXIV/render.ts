@@ -258,14 +258,14 @@ export class LayoutObjectsRenderer {
             }
 
             // debug
-            mat4.getTranslation(this.scratchVec3, modelMatrix);
-            if (obj.layer_type != 1) {
-                drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
-                    font: "6pt monospace",
-                    align: "center"
-                })
-            }
-            drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
+            // mat4.getTranslation(this.scratchVec3, modelMatrix);
+            // if (obj.layer_type != 1) {
+            //     drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
+            //         font: "6pt monospace",
+            //         align: "center"
+            //     })
+            // }
+            // drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
 
         }
     }
@@ -407,7 +407,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         for (const [materialPath, material] of filesystem.materials.entries()) {
             const textureName = material?.texture_names[0];
             const texture = globals.filesystem.textures[textureName];
-            const alpha = texture == undefined ? 0.9 : 0.0
+            const alpha = (texture == undefined || texture.gfxTexture == null) ? 0.9 : 0.0
 
             randomColorMap[materialPath] = colorNewFromRGBA(Math.random(), Math.random(), Math.random(), alpha);
         }
@@ -510,8 +510,8 @@ export function processTextures(device: GfxDevice, textures: Texture[]): FakeTex
     textures.forEach(t => {
         t.converted = convertTexture(t);
         if (t.converted) {
-            // vTextures.push(textureToCanvas(t)!);
-            // fth.textureNames.push(t.path);
+            vTextures.push(textureToCanvas(t)!);
+            fth.textureNames.push(t.path);
             t.gfxTexture = makeGraphicsTexture(device, t.converted);
             if (t.gfxTexture == null) {
                 console.log(`Failed to make texture for ${t.format}`)
