@@ -179,9 +179,33 @@ export interface TerrainPlateBuffers {
 }
 
 const sceneDescs = [
-    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f3`, "Eastern Thanalan"),
-    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t2`, "Limsa Lominsa Lower Decks"),
-    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t1`, "Limsa Lominsa Upper Decks"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/twn/f1t1`, "The Black Shroud - New Gridania"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/twn/f1t2`, "The Black Shroud - Old Gridania"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/fld/f1f1`, "The Black Shroud - Central Shroud"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/fld/f1f2`, "The Black Shroud - East Shroud"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/fld/f1f3`, "The Black Shroud - South Shroud"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/fld/f1f4`, "The Black Shroud - North Shroud"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/dun/f1d1`, "The Black Shroud - The Tam-Tara Deepcroft"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/rad/f1r1`, "The Black Shroud - The Thousand Maws of Toto-Rak"),
+    new FFXIVMapDesc(`bg/ffxiv/zon_z1/jai/z1j1`, "??? - Mordion Gaol"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t1`, "La Noscea - Limsa Lominsa Upper Decks"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t2`, "La Noscea - Limsa Lominsa Lower Decks"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/twn/w1t1`, "Thanalan - Ul'dah - Steps of Nald"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/twn/w1t2`, "Thanalan - Ul'dah - Steps of Thal"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/fld/s1f1`, "La Noscea - Middle La Noscea"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/fld/s1f2`, "La Noscea - Lower La Noscea"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/fld/s1f3`, "La Noscea - Eastern La Noscea"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/fld/s1f4`, "La Noscea - Western La Noscea"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/fld/s1f5`, "La Noscea - Upper La Noscea"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f1`, "Thanalan - Western Thanalan"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f2`, "Thanalan - Central Thanalan"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f3`, "Thanalan - Eastern Thanalan"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f4`, "Thanalan - Southern Thanalan"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/fld/w1f5`, "Thanalan - Northern Thanalan"),
+    new FFXIVMapDesc(`bg/ffxiv/lak_l1/fld/l1f1`, "Mor Dhona - Mor Dhona"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1ti`, "La Noscea - Mizzenmast Inn"),
+    new FFXIVMapDesc(`bg/ffxiv/wil_w1/twn/w1ti`, "Thanalan - The Hourglass"),
+    new FFXIVMapDesc(`bg/ffxiv/fst_f1/twn/f1ti`, "The Black Shroud - The Roost"),
 ];
 
 const id = `FinalFantasyXIV`;
