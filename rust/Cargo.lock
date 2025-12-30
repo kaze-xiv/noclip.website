@@ -328,7 +328,7 @@ dependencies = [
  "bitvec",
  "deku_derive 0.19.1",
  "log",
- "no_std_io2 0.9.2",
+ "no_std_io2 0.9.3",
  "rustversion",
 ]
 
@@ -772,9 +772,9 @@ dependencies = [
 
 [[package]]
 name = "no_std_io2"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "363b2defc9b4f195a84e7419e11e1b9af7df1f0ea62305fc5d1d04e93c536d65"
+checksum = "b51ed7824b6e07d354605f4abb3d9d300350701299da96642ee084f5ce631550"
 dependencies = [
  "memchr",
 ]
@@ -918,7 +918,6 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 [[package]]
 name = "physis"
 version = "0.6.0"
-source = "git+https://github.com/kaze-xiv/Physis#a7029da1c0bd3ed9e321b6b592e30e98af560381"
 dependencies = [
  "binrw 0.15.0",
  "bitflags",

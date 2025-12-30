@@ -46,7 +46,7 @@ anyhow = "1.0.99"
 #ironworks = {version = "0.4.1", features = ["excel", "ffxiv", "sqpack", "mdl"]}
 ironworks = { path = "/data/Projects/ironworks/ironworks", features = ["excel", "sqpack", "mdl", "tex", "mtrl"] }
 #ironworks_sheets = {git = "https://github.com/kaze-xiv/ironworks", branch = "sheets/saint-coinach"}
-physis = { git = "https://github.com/kaze-xiv/Physis"}
+physis = { path = "/data/Projects/Physis" }
 
 
 [lints.rust]

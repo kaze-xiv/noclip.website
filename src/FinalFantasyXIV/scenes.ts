@@ -11,7 +11,7 @@ import { Texture, TextureFormat } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
 import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
 
-const pathBase = "FFXIV"
+const pathBase = "FFXIV";
 
 export type FFXIVFile = Texture | Terrain | rust.FFXIVModel | rust.FFXIVMaterial | FFXIVLgb | null;
 export type FFXIVFilesystem = {
@@ -50,12 +50,21 @@ class FFXIVMapDesc implements SceneDesc {
             materialNames.add(materialsInModelsInLgb[i]);
         }
 
+        const sgbFiles = new Set(lgb.flatMap(l => l.discoveredSgbs));
+        const sgb = await Promise.all([...sgbFiles].map(sgb => this.loadSgb(dataFetcher, sgb)));
+        const modelPathsInSgb = [...new Set(sgb.flatMap(l => l?.discoveredModels ?? []))];
+        const modelsInSgb = await Promise.all([...modelPathsInSgb.values()].map(model => this.loadPart(dataFetcher, model)));
+        const materialsInModelsInSgb = modelsInSgb.flatMap(model => model?.meshes?.map(mesh => model.materials[mesh.get_material_index()]) ?? []);
+        for (let i = 0; i < materialsInModelsInSgb.length; i++) {
+            materialNames.add(materialsInModelsInSgb[i]);
+        }
+        // what if we find more loll
+
+
         const materials = await Promise.all([...materialNames.values()].map(mat => this.loadMaterial(dataFetcher, mat)));
-        (window as any).shaders = [...new Set(materials.map(m => m.get_shader_name()))];
-        (window as any).testMaterial = materials[0].get_texture_names();
 
         // discover textures
-        const textureNames = new Set<string>(materials.flatMap(m => m.get_texture_names()));
+        const textureNames = new Set<string>(materials.flatMap(m => m.texture_names));
         const textures = await Promise.all([...textureNames.values()].map(t => this.loadTexture(dataFetcher, t)));
         // for (let i = 0; i < textures.length; i++) {
         //     const texture = textures[i];
@@ -88,6 +97,18 @@ class FFXIVMapDesc implements SceneDesc {
         return lgb;
     }
 
+    private async loadSgb(dataFetcher: DataFetcher, path: string): Promise<rust.FFXIVSgb | null> {
+        const data = await dataFetcher.fetchData(`${pathBase}/${path}`);
+        try {
+            const lgb = rust.FFXIVSgb.parse(new Uint8Array(data.arrayBuffer))
+            this.putFileInFilesystem(path, lgb);
+            return lgb;
+        } catch {
+            console.log(`Failed to load sgb ${path}`)
+            return null;
+        }
+    }
+
     private async loadTerrainFile(dataFetcher: DataFetcher, mapBase: string): Promise<Terrain> {
         const path = `${mapBase}/bgplate/terrain.tera`;
         const terrain = new Terrain(await dataFetcher.fetchData(`${pathBase}/${path}`));
@@ -113,9 +134,14 @@ class FFXIVMapDesc implements SceneDesc {
 
     private async loadMaterial(dataFetcher: DataFetcher, path: string): Promise<rust.FFXIVMaterial> {
         const data = await dataFetcher.fetchData(`${pathBase}/${path}`);
-        const mat = rust.FFXIVMaterial.parse(new Uint8Array(data.arrayBuffer));
-        this.putFileInFilesystem(path, mat);
-        return mat;
+        const realMat = rust.FFXIVMaterial.parse(new Uint8Array(data.arrayBuffer));
+        // i'm paranoid about getter_with_clone now
+        const shimMat = {
+            texture_names: realMat.texture_names,
+            shader_name: realMat.shader_name,
+        } as rust.FFXIVMaterial;
+        this.putFileInFilesystem(path, shimMat);
+        return shimMat;
     }
 
     private async loadTexture(dataFetcher: DataFetcher, path: string): Promise<Texture> {

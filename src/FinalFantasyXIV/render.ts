@@ -3,7 +3,7 @@ import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
 
-import { GfxBindingLayoutDescriptor, GfxBuffer, GfxBufferFrequencyHint, GfxBufferUsage, GfxCullMode, GfxDevice, GfxFormat, GfxIndexBufferDescriptor, GfxInputLayout, GfxInputLayoutBufferDescriptor, GfxMipFilterMode, GfxProgram, GfxTexFilterMode, GfxVertexAttributeDescriptor, GfxVertexBufferDescriptor, GfxVertexBufferFrequency, GfxWrapMode } from '../gfx/platform/GfxPlatform.js';
+import { GfxBindingLayoutDescriptor, GfxBuffer, GfxBufferFrequencyHint, GfxBufferUsage, GfxCullMode, GfxDevice, GfxFormat, GfxIndexBufferDescriptor, GfxInputLayout, GfxInputLayoutBufferDescriptor, GfxMipFilterMode, GfxProgram, GfxSampler, GfxTexFilterMode, GfxVertexAttributeDescriptor, GfxVertexBufferDescriptor, GfxVertexBufferFrequency, GfxWrapMode } from '../gfx/platform/GfxPlatform.js';
 import { fillColor, fillMatrix4x3, fillMatrix4x4 } from '../gfx/helpers/UniformBufferHelpers.js';
 import { makeBackbufferDescSimple, standardFullClearRenderPassDescriptor } from '../gfx/helpers/RenderGraphHelpers.js';
 import { GfxRenderHelper } from '../gfx/render/GfxRenderHelper.js';
@@ -96,39 +96,25 @@ export class MeshRenderer {
     public name: string;
     public color: Color;
 
-    public vertices: Uint8Array;
     public vertexBuffer: GfxBuffer;
     public vertexBufferDescriptors: GfxVertexBufferDescriptor[];
     public indexBufferDescriptor: GfxIndexBufferDescriptor;
 
     public drawCount: number;
-
-    public triBytes: Uint16Array;
     public triBuffer: GfxBuffer;
-
-
     public textureMappings: (TextureMapping | null)[] = [];
-
 
     constructor(public globals: RenderGlobals,
                 public materialName: string,
                 public mesh: MeshWrapper,
                 public modelMatrix: mat4) {
         const material = globals.filesystem[materialName] as FFXIVMaterial;
-        const textures = material.get_texture_names().map(x => globals.filesystem[x] as Texture);
-        const sampler = this.globals.renderHelper.renderCache.createSampler({
-            wrapS: GfxWrapMode.Repeat,
-            wrapT: GfxWrapMode.Repeat,
-            minFilter: GfxTexFilterMode.Point,
-            magFilter: GfxTexFilterMode.Point,
-            mipFilter: GfxMipFilterMode.Nearest,
-            minLOD: 0, maxLOD: 0,
-        });
+        const textures = material.texture_names.map(x => globals.filesystem[x] as Texture);
         this.textureMappings = textures.map(t => {
             if (t.gfxTexture == null) return null;
             const mapping = new TextureMapping();
             mapping.gfxTexture = t.gfxTexture;
-            mapping.gfxSampler = sampler;
+            mapping.gfxSampler = globals.repeatSampler;
             return mapping;
         })
 
@@ -142,13 +128,13 @@ export class MeshRenderer {
             this.color = randomColorMap[materialName];
         }
 
-        const vertices = this.vertices = mesh.attributes();
+        const vertices = mesh.attributes();
         this.vertexBuffer = createBufferFromData(globals.renderHelper.device, GfxBufferUsage.Vertex, GfxBufferFrequencyHint.Static, vertices.buffer)
 
 
-        this.triBytes = mesh.indices()
-        this.drawCount = getTriangleCountForTopologyIndexCount(GfxTopology.Triangles, this.triBytes.length);
-        this.triBuffer = createBufferFromData(globals.renderHelper.device, GfxBufferUsage.Index, GfxBufferFrequencyHint.Static, this.triBytes.buffer);
+        const triBytes = mesh.indices();
+        this.drawCount = getTriangleCountForTopologyIndexCount(GfxTopology.Triangles, triBytes.length);
+        this.triBuffer = createBufferFromData(globals.renderHelper.device, GfxBufferUsage.Index, GfxBufferFrequencyHint.Static, triBytes.buffer);
         this.indexBufferDescriptor = {buffer: this.triBuffer};
 
         this.vertexBufferDescriptors = [
@@ -346,11 +332,21 @@ export class RenderGlobals {
     public renderInstListMain = new GfxRenderInstList();
     public layout: GfxInputLayout;
 
+    public repeatSampler: GfxSampler;
+
     constructor(device: GfxDevice, public filesystem: FFXIVFilesystem, public terrain: Terrain, public lgbs: FFXIVLgb[]) {
         this.renderHelper = new GfxRenderHelper(device);
         this.renderInstManager = this.renderHelper.renderInstManager;
         this.meshGfxProgram = this.renderHelper.renderCache.createProgram(this.meshProgram);
         this.layout = this.createLayout();
+        this.repeatSampler = this.renderHelper.renderCache.createSampler({
+            wrapS: GfxWrapMode.Repeat,
+            wrapT: GfxWrapMode.Repeat,
+            minFilter: GfxTexFilterMode.Point,
+            magFilter: GfxTexFilterMode.Point,
+            mipFilter: GfxMipFilterMode.Nearest,
+            minLOD: 0, maxLOD: 0,
+        });
     }
 
     public createLayout(): GfxInputLayout {
@@ -411,14 +407,18 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem, lgbs: FFXIVLgb[]) {
         this.globals = new RenderGlobals(device, filesystem, terrain, lgbs)
 
+        console.time("Create terrain renderers")
         this.modelRenderers = range(0, terrain.plateCount).map(i => {
             const model = this.globals.terrain.models[i];
             if (!model) return null;
             return new TerrainModelRenderer(this.globals, model, i);
         });
+        console.timeEnd("Create terrain renderers")
 
+        console.time("Create lgb renderers")
         for (let i = 0; i < lgbs.length; i++)
             this.lgbRenderers.push(new LgbRenderer(this.globals, lgbs[i], i));
+        console.timeEnd("Create lgb renderers")
     }
 
     public adjustCameraController(c: CameraController) {
@@ -426,6 +426,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     }
 
     private prepareToRender(viewerInput: Viewer.ViewerRenderInput): void {
+        viewerInput.camera.setClipPlanes(0.1)
         const renderHelper = this.globals.renderHelper;
 
         const template = renderHelper.pushTemplateRenderInst();
@@ -488,18 +489,19 @@ function textureToCanvas(texture: Texture): Viewer.Texture | null {
     const surfaces = [canvas];
     const extraInfo = new Map<string, string>();
     // extraInfo.set('Format', "IDK");
-    return { name: texture.path, surfaces, extraInfo };
+    return {name: texture.path, surfaces, extraInfo};
 }
 
 export function processTextures(device: GfxDevice, textures: Texture[]): FakeTextureHolder {
     const vTextures: Viewer.Texture[] = [];
     const fth = new FakeTextureHolder(vTextures);
+    console.time("Texture conversion")
 
     textures.forEach(t => {
         t.converted = convertTexture(t);
         if (t.converted) {
-            vTextures.push(textureToCanvas(t)!);
-            fth.textureNames.push(t.path);
+            // vTextures.push(textureToCanvas(t)!);
+            // fth.textureNames.push(t.path);
             t.gfxTexture = makeGraphicsTexture(device, t.converted);
             if (t.gfxTexture == null) {
                 console.log(`Failed to make texture for ${t.format}`)
@@ -508,5 +510,6 @@ export function processTextures(device: GfxDevice, textures: Texture[]): FakeTex
             console.log(`Failed to make texture for ${t.format}`)
         }
     })
+    console.timeEnd("Texture conversion")
     return fth;
 }
