@@ -258,14 +258,14 @@ export class LayoutObjectsRenderer {
             }
 
             // debug
-            // mat4.getTranslation(this.scratchVec3, modelMatrix);
-            // if (obj.layer_type != 1) {
-            //     drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
-            //         font: "6pt monospace",
-            //         align: "center"
-            //     })
-            // }
-            // drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
+            mat4.getTranslation(this.scratchVec3, modelMatrix);
+            if (obj.layer_type != 1) {
+                drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
+                    font: "6pt monospace",
+                    align: "center"
+                })
+            }
+            drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
 
         }
     }
