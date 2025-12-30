@@ -274,7 +274,8 @@ export class LayoutObjectsRenderer {
     calculateModelMatrix(dst: mat4, obj: FlatLayoutObject) {
         const rot = this.scratchVec4;
 
-        quat.fromEuler(rot, obj.rotation[0] / Math.PI * 180, obj.rotation[1] / Math.PI * 180, obj.rotation[2] / Math.PI * 180);
+        const origRot = obj.rotation;
+        quat.fromEuler(rot, origRot[0] / Math.PI * 180, origRot[1] / Math.PI * 180, origRot[2] / Math.PI * 180);
         mat4.fromRotationTranslationScale(dst, rot, obj.translation, obj.scale);
     }
 
