@@ -1,4 +1,4 @@
-import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
+import { mat4, quat, ReadonlyMat4, vec2, vec3, vec4 } from 'gl-matrix';
 
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
@@ -13,9 +13,9 @@ import { GfxrAttachmentSlot } from '../gfx/render/GfxRenderGraph.js';
 import { GfxShaderLibrary } from '../gfx/helpers/GfxShaderLibrary.js';
 import { createBufferFromData } from '../gfx/helpers/BufferHelpers.js';
 import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FlatLayoutObject, MeshWrapper } from "../../rust/pkg";
-import { Color, colorNewFromRGBA } from "../Color";
+import { Color, colorFromHSL, colorNewCopy, colorNewFromRGBA, OpaqueBlack } from "../Color";
 import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpers/TopologyHelpers";
-import { drawWorldSpacePoint, getDebugOverlayCanvas2D } from "../DebugJunk";
+import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
 import { Terrain } from "./Terrain";
 import { range } from "../MathHelpers";
 import { FFXIVFilesystem } from "./scenes";
@@ -204,43 +204,78 @@ export class ModelRenderer {
     }
 }
 
-type LayoutObjectRenderer = ModelRenderer | null;
+type LayoutObjectRenderer = ModelRenderer | LayoutObjectsRenderer | null;
 
-export class LgbRenderer {
-    public objects: FlatLayoutObject[];
+export class LayoutObjectsRenderer {
     public objectRenderers: (LayoutObjectRenderer | null)[];
-
-    constructor(public globals: RenderGlobals, public lgb: FFXIVLgb, public lgbIndex: number) {
-        const objs = this.objects = lgb.objects;
+    private debugColor: Color = colorNewCopy(OpaqueBlack);
+    constructor(public globals: RenderGlobals, public objects: FlatLayoutObject[], public modelMatrix: ReadonlyMat4 = mat4.create()) {
+        const objs = this.objects;
         this.objectRenderers = new Array(objs.length);
 
         for (let i = 0; i < objs.length; i++) {
             const obj = objs[i];
-            if (obj.layer_type == 0x01) {
-                const mdlLookup = globals.modelCache[obj.asset_name!];
-                this.objectRenderers[i] = mdlLookup;
-            } else {
-                this.objectRenderers.push(null);
-            }
+            this.objectRenderers[i] = this.findRendererForObject(obj);
         }
+
+        colorFromHSL(this.debugColor, Math.random(), 0.7, 0.6);
+    }
+
+    findRendererForObject(obj: FlatLayoutObject): LayoutObjectRenderer {
+        if (obj.layer_type == 0x01) {
+            const mdlLookup = this.globals.modelCache[obj.asset_name!];
+            return mdlLookup;
+        } else if (obj.layer_type == 0x06) {
+            const sgb = this.globals.filesystem.sgbs[obj.asset_name!];
+            if (!sgb) return null;
+            const joint = mat4.create();
+            const mine = mat4.create();
+            this.calculateModelMatrix(mine, obj);
+            mat4.mul(joint, this.modelMatrix, mine);
+            return new LayoutObjectsRenderer(this.globals, sgb?.objects, joint);
+        }
+        return null;
     }
 
     private scratchMat = mat4.create();
+    private scratchMat2 = mat4.create();
     private scratchVec4 = vec4.create();
 
+    private scratchVec3 = vec3.create();
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
+
         const modelMatrix = this.scratchMat;
+        const jointModelMatrix = this.scratchMat2;
+
         for (let i = 0; i < this.objectRenderers.length; i++) {
             const obj = this.objects[i];
+
+            this.calculateModelMatrix(jointModelMatrix, obj);
+            mat4.mul(modelMatrix, jointModelMatrix, this.modelMatrix)
+
             const renderer = this.objectRenderers[i];
             if (renderer) {
-                const rot = this.scratchVec4;
-                quat.fromEuler(rot, obj.rotation[0] / Math.PI * 180, obj.rotation[1] / Math.PI * 180, obj.rotation[2] / Math.PI * 180);
-                mat4.fromRotationTranslationScale(modelMatrix, rot, obj.translation, obj.scale);
-
                 renderer.prepareToRender(renderInstManager, viewerInput, modelMatrix);
             }
+
+            // debug
+            // mat4.getTranslation(this.scratchVec3, modelMatrix);
+            // if (obj.layer_type != 1) {
+            //     drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
+            //         font: "6pt monospace",
+            //         align: "center"
+            //     })
+            // }
+            // drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
+
         }
+    }
+
+    calculateModelMatrix(dst: mat4, obj: FlatLayoutObject) {
+        const rot = this.scratchVec4;
+
+        quat.fromEuler(rot, obj.rotation[0] / Math.PI * 180, obj.rotation[1] / Math.PI * 180, obj.rotation[2] / Math.PI * 180);
+        mat4.fromRotationTranslationScale(dst, rot, obj.translation, obj.scale);
     }
 
     destroy() {
@@ -363,7 +398,7 @@ export class RenderGlobals {
 export class FFXIVRenderer implements Viewer.SceneGfx {
     globals: RenderGlobals;
     private terrainRenderer: TerrainRenderer;
-    private lgbRenderers: (LgbRenderer | null)[] = [];
+    private lgbRenderers: (LayoutObjectsRenderer | null)[] = [];
     public textureHolder: TextureListHolder;
 
     constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem, lgbs: FFXIVLgb[]) {
@@ -390,7 +425,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
         console.time("Create lgb renderers")
         for (let i = 0; i < lgbs.length; i++)
-            this.lgbRenderers.push(new LgbRenderer(globals, lgbs[i], i));
+            this.lgbRenderers.push(new LayoutObjectsRenderer(globals, lgbs[i].objects));
         console.timeEnd("Create lgb renderers")
     }
 

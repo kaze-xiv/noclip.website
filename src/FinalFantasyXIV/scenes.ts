@@ -46,8 +46,8 @@ class FFXIVMapDesc implements SceneDesc {
 
         console.time("Load LGB")
         const lgbNames = ["bg.lgb",
-            // "planmap.lgb",
-            // "planevent.lgb"
+            "planmap.lgb",
+            "planevent.lgb"
         ];
         const lgb = await Promise.all(lgbNames.map(lgb => this.loadLgb(dataFetcher, `${mapBase}/level/${lgb}`)));
         const modelPathssInLgb = [...new Set(lgb.flatMap(l => l.discoveredModels))];
