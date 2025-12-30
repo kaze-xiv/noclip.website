@@ -7,7 +7,7 @@ export class Terrain {
     public plateSize: number;
     public plateCount: number;
 
-    public models: (FFXIVModel | null)[];
+    public models: FFXIVModel[];
 
     constructor(private buffer: ArrayBufferSlice) {
         const view = this.buffer.createDataView();
