@@ -148,11 +148,12 @@ export class MeshRenderer {
         const renderInstManager = this.globals.renderInstManager;
         const templateRenderInst = renderInstManager.pushTemplate();
 
+        computeViewMatrix(mat4scratch, viewerInput.camera);
+        mat4.mul(mat4scratch, mat4scratch, modelMatrix);
+
         let offs = templateRenderInst.allocateUniformBuffer(IVProgram.ub_ObjectParams, 4 + 16);
         const d = templateRenderInst.mapUniformBufferF32(IVProgram.ub_ObjectParams);
-        computeViewMatrix(modelViewScratch, viewerInput.camera);
-        mat4.mul(modelViewScratch, modelViewScratch, modelMatrix);
-        offs += fillMatrix4x3(d, offs, modelViewScratch);
+        offs += fillMatrix4x3(d, offs, mat4scratch);
         offs += fillColor(d, offs, this.color);
 
         const renderInst = renderInstManager.newRenderInst();
@@ -177,10 +178,7 @@ const bindingLayouts: GfxBindingLayoutDescriptor[] = [
 const randomColorMap: { [name: string]: Color } = {};
 (window as any).randomColorMap = randomColorMap;
 
-const modelViewScratch = mat4.create();
-const vec2scratch = vec2.create();
-const vec3scratch = vec3.create();
-const vec4scratch = vec4.create();
+const mat4scratch = mat4.create();
 
 export class ModelRenderer {
     public meshRenderers: MeshRenderer[] = [];
@@ -228,6 +226,7 @@ export class LgbRenderer {
     }
 
     private scratchMat = mat4.create();
+    private scratchVec4 = vec4.create();
 
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
         const modelMatrix = this.scratchMat;
@@ -235,8 +234,10 @@ export class LgbRenderer {
             const obj = this.objects[i];
             const renderer = this.objectRenderers[i];
             if (renderer) {
-                // TODO
-                mat4.fromTranslation(modelMatrix, obj.translation)
+                const rot = this.scratchVec4;
+                quat.fromEuler(rot, obj.rotation[0] / Math.PI * 180, obj.rotation[1] / Math.PI * 180, obj.rotation[2] / Math.PI * 180);
+                mat4.fromRotationTranslationScale(modelMatrix, rot, obj.translation, obj.scale);
+
                 renderer.prepareToRender(renderInstManager, viewerInput, modelMatrix);
             }
         }
