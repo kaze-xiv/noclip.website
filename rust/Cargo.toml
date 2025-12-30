@@ -47,6 +47,9 @@ anyhow = "1.0.99"
 ironworks = { path = "/data/Projects/ironworks/ironworks", features = ["excel", "sqpack", "mdl", "tex", "mtrl"] }
 #ironworks_sheets = {git = "https://github.com/kaze-xiv/ironworks", branch = "sheets/saint-coinach"}
 physis = { path = "/data/Projects/Physis" }
+serde-wasm-bindgen = "0.6.5"
+serde = { version = "1.0.228", features = ["derive"] }
+tsify = { version = "0.5.5" }
 
 
 [lints.rust]

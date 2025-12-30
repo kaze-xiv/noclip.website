@@ -10,6 +10,7 @@ import ArrayBufferSlice from "../ArrayBufferSlice";
 import { Texture, TextureFormat } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
 import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FFXIVSgb } from "../../rust/pkg";
+import { shimLgb, shimSgb } from "./sgb";
 
 const pathBase = "FFXIV";
 
@@ -94,7 +95,7 @@ class FFXIVMapDesc implements SceneDesc {
 
     private async loadLgb(dataFetcher: DataFetcher, path: string): Promise<rust.FFXIVLgb> {
         const data = await dataFetcher.fetchData(`${pathBase}/${path}`);
-        const lgb = rust.FFXIVLgb.parse(new Uint8Array(data.arrayBuffer))
+        const lgb = shimLgb(rust.FFXIVLgb.parse(new Uint8Array(data.arrayBuffer)));
         this.filesystem.lgbs[path] = lgb;
         return lgb;
     }
@@ -102,7 +103,7 @@ class FFXIVMapDesc implements SceneDesc {
     private async loadSgb(dataFetcher: DataFetcher, path: string): Promise<rust.FFXIVSgb | null> {
         const data = await dataFetcher.fetchData(`${pathBase}/${path}`);
         try {
-            const sgb = rust.FFXIVSgb.parse(new Uint8Array(data.arrayBuffer))
+            const sgb = shimSgb(rust.FFXIVSgb.parse(new Uint8Array(data.arrayBuffer)));
             this.filesystem.sgbs[path] = sgb;
             return sgb;
         } catch {

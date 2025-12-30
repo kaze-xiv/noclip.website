@@ -1,9 +1,8 @@
-use std::vec::IntoIter;
 use physis::layer::{InstanceObject, LayerEntryData, LayerGroup};
 use physis::sgb::Sgb;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[serde_wasm_bindgen(getter_with_clone)]
+#[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct FFXIVLgb {
     pub discoveredModels: Vec<String>,
