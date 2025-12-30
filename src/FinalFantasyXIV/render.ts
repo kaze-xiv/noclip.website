@@ -146,7 +146,7 @@ export class MeshRenderer {
 
     public prepareToRender(viewerInput: Viewer.ViewerRenderInput, modelMatrix: mat4): void {
         const renderInstManager = this.globals.renderInstManager;
-        const templateRenderInst = renderInstManager.pushTemplate();
+        const templateRenderInst = renderInstManager.getCurrentTemplate();
 
         computeViewMatrix(mat4scratch, viewerInput.camera);
         mat4.mul(mat4scratch, mat4scratch, modelMatrix);
@@ -162,7 +162,6 @@ export class MeshRenderer {
         renderInst.setSamplerBindingsFromTextureMappings(this.textureMappings);
         renderInstManager.submitRenderInst(renderInst);
 
-        renderInstManager.popTemplate();
     }
 
     public destroy(): void {
