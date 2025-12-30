@@ -80,11 +80,13 @@ void mainVS() {
 #ifdef FRAG
 void mainPS() {
     vec4 t_DiffuseMapColor = texture(SAMPLER_2D(u_Texture1), v_TexCoord0.xy);
-    
-    gl_FragColor.rgb = u_Color.a > 0.5 ? u_Color.xyz : t_DiffuseMapColor.rgb;
+    vec3 t_NormalMap = texture(SAMPLER_2D(u_Texture2), v_TexCoord0.xy).xyz;
+    vec3 t_LightDirection2 = normalize(vec3(.2, -1, .5));
+    //t_NormalMap.z = 0.5;
+    float eDotR = -dot(t_NormalMap, t_LightDirection2);
 
-    //float t_LightTint = 0.3 * v_LightIntensity;
-    //gl_FragColor = u_Color + vec4(t_LightTint, t_LightTint, t_LightTint, 0.0);
+    vec3 albedo = u_Color.a > 0.5 ? u_Color.xyz : t_DiffuseMapColor.rgb;
+    gl_FragColor.rgb = albedo * (eDotR + 0.5);
 }
 #endif
 `;
