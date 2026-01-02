@@ -6,22 +6,13 @@ import { rust } from '../rustlib.js';
 import { FFXIVRenderer, processTextures } from "./render";
 import { range } from "../MathHelpers";
 import { Terrain } from "./Terrain";
-import ArrayBufferSlice from "../ArrayBufferSlice";
-import { Texture, TextureFormat } from "./Texture";
+import { Texture } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
-import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FFXIVSgb } from "../../rust/pkg";
+import { FFXIVModel } from "../../rust/pkg";
 import { shimLgb, shimSgb } from "./sgb";
+import { FFXIVFilesystem } from "./Filesystem";
 
 const pathBase = "FFXIV";
-
-export class FFXIVFilesystem {
-    public models = new Map<string, FFXIVModel>();
-    public terrains: { [key: string]: Terrain | undefined } = {};
-    public textures: { [key: string]: Texture | undefined } = {};
-    public materials = new Map<string, FFXIVMaterial>();
-    public lgbs: { [key: string]: FFXIVLgb | undefined } = {};
-    public sgbs: { [key: string]: FFXIVSgb | undefined } = {};
-}
 
 
 class FFXIVMapDesc implements SceneDesc {
@@ -81,7 +72,7 @@ class FFXIVMapDesc implements SceneDesc {
             }
 
             const moreSgb = new Set<string>(sgb.flatMap(s => s?.discoveredSgbs ?? []));
-            const notDone = ((moreSgb as any).difference)(loadedSgbFiles)  as Set<string>;
+            const notDone = ((moreSgb as any).difference)(loadedSgbFiles) as Set<string>;
             if (notDone.size > 0) {
                 sgbFiles = notDone;
                 foundMore = true;
@@ -172,10 +163,6 @@ class FFXIVMapDesc implements SceneDesc {
         this.filesystem.textures[path] = texture;
         return texture;
     }
-}
-
-export interface TerrainPlateBuffers {
-    [index: number]: ArrayBufferSlice;
 }
 
 const sceneDescs = [
