@@ -12,13 +12,11 @@ import { CameraController, computeViewMatrix } from '../Camera.js';
 import { GfxrAttachmentSlot } from '../gfx/render/GfxRenderGraph.js';
 import { GfxShaderLibrary } from '../gfx/helpers/GfxShaderLibrary.js';
 import { createBufferFromData } from '../gfx/helpers/BufferHelpers.js';
-import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FlatLayoutObject, MeshWrapper } from "../../rust/pkg";
+import { FFXIVLgb, FFXIVModel, FlatLayoutObject, MeshWrapper } from "../../rust/pkg";
 import { Color, colorFromHSL, colorNewCopy, colorNewFromRGBA, OpaqueBlack } from "../Color";
 import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpers/TopologyHelpers";
-import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
 import { Terrain } from "./Terrain";
-import { range } from "../MathHelpers";
-import { FFXIVFilesystem } from "./scenes";
+import { FFXIVFilesystem } from "./Filesystem";
 import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import { convertTexture, makeGraphicsTexture, Texture } from "./Texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
@@ -210,6 +208,7 @@ type LayoutObjectRenderer = ModelRenderer | LayoutObjectsRenderer | null;
 export class LayoutObjectsRenderer {
     public objectRenderers: (LayoutObjectRenderer | null)[];
     private debugColor: Color = colorNewCopy(OpaqueBlack);
+
     constructor(public globals: RenderGlobals, public objects: FlatLayoutObject[], public modelMatrix: ReadonlyMat4 = mat4.create()) {
         const objs = this.objects;
         this.objectRenderers = new Array(objs.length);
@@ -243,6 +242,7 @@ export class LayoutObjectsRenderer {
     private scratchVec4 = vec4.create();
 
     private scratchVec3 = vec3.create();
+
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
 
         const modelMatrix = this.scratchMat;
