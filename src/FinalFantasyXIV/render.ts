@@ -108,7 +108,7 @@ export class MeshRenderer {
                 public materialName: string,
                 public mesh: MeshWrapper) {
         const material = globals.filesystem.materials.get(materialName);
-        const textures = material?.texture_names.map(x => globals.filesystem.textures[x]);
+        const textures = material?.texture_names.map(x => globals.filesystem.textures.get(x));
         this.textureMappings = textures?.map(t => {
             if (!t?.gfxTexture) return null;
             const mapping = new TextureMapping();
@@ -226,7 +226,7 @@ export class LayoutObjectsRenderer {
             const mdlLookup = this.globals.modelCache[obj.asset_name!];
             return mdlLookup;
         } else if (obj.layer_type == 0x06) {
-            const sgb = this.globals.filesystem.sgbs[obj.asset_name!];
+            const sgb = this.globals.filesystem.sgbs.get(obj.asset_name!);
             if (!sgb) return null;
             const joint = mat4.create();
             const mine = mat4.create();
@@ -310,7 +310,7 @@ export class TerrainRenderer {
     }
 
     public computeModelMatrix(out: mat4, index: number) {
-        const terrain = this.globals.terrain;
+        const terrain = this.globals.filesystem.terrain;
         const xz = this.vec2scratch;
 
         terrain.getPlatePosition(xz, index);
@@ -335,7 +335,7 @@ export class RenderGlobals {
 
     public modelCache: { [key: string]: ModelRenderer } = {};
 
-    constructor(device: GfxDevice, public filesystem: FFXIVFilesystem, public terrain: Terrain, public lgbs: FFXIVLgb[]) {
+    constructor(device: GfxDevice, public filesystem: FFXIVFilesystem) {
         this.renderHelper = new GfxRenderHelper(device);
         this.renderInstManager = this.renderHelper.renderInstManager;
         this.meshGfxProgram = this.renderHelper.renderCache.createProgram(this.meshProgram);
@@ -403,12 +403,12 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     private lgbRenderers: (LayoutObjectsRenderer | null)[] = [];
     public textureHolder: TextureListHolder;
 
-    constructor(device: GfxDevice, terrain: Terrain, filesystem: FFXIVFilesystem, lgbs: FFXIVLgb[]) {
-        const globals = this.globals = new RenderGlobals(device, filesystem, terrain, lgbs);
+    constructor(device: GfxDevice, filesystem: FFXIVFilesystem) {
+        const globals = this.globals = new RenderGlobals(device, filesystem);
 
         for (const [materialPath, material] of filesystem.materials.entries()) {
             const textureName = material?.texture_names[0];
-            const texture = globals.filesystem.textures[textureName];
+            const texture = globals.filesystem.textures.get(textureName);
             const alpha = (texture == undefined || texture.gfxTexture == null) ? 0.9 : 0.0
 
             randomColorMap[materialPath] = colorNewFromRGBA(Math.random(), Math.random(), Math.random(), alpha);
@@ -422,12 +422,12 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         console.timeEnd("Create model renderers")
 
         console.time("Create terrain renderer")
-        this.terrainRenderer = new TerrainRenderer(globals, terrain)
+        this.terrainRenderer = new TerrainRenderer(globals, this.globals.filesystem.terrain)
         console.timeEnd("Create terrain renderer")
 
         console.time("Create lgb renderers")
-        for (let i = 0; i < lgbs.length; i++)
-            this.lgbRenderers.push(new LayoutObjectsRenderer(globals, lgbs[i].objects));
+        for (const [lgbPath, lgb] of filesystem.lgbs.entries())
+            this.lgbRenderers.push(new LayoutObjectsRenderer(globals, lgb.objects));
         console.timeEnd("Create lgb renderers")
     }
 
@@ -505,22 +505,21 @@ function textureToCanvas(texture: Texture): Viewer.Texture | null {
     return {name: texture.path, surfaces, extraInfo};
 }
 
-export function processTextures(device: GfxDevice, textures: Texture[]): FakeTextureHolder {
+export function processTextures(device: GfxDevice, filesystem: FFXIVFilesystem): FakeTextureHolder {
     const vTextures: Viewer.Texture[] = [];
     const fth = new FakeTextureHolder(vTextures);
-
-    textures.forEach(t => {
-        t.converted = convertTexture(t);
-        if (t.converted) {
-            vTextures.push(textureToCanvas(t)!);
-            fth.textureNames.push(t.path);
-            t.gfxTexture = makeGraphicsTexture(device, t.converted);
-            if (t.gfxTexture == null) {
-                console.log(`Failed to make texture for ${t.format}`)
+    for (let [path, texture] of filesystem.textures.entries()) {
+        texture.converted = convertTexture(texture);
+        if (texture.converted) {
+            vTextures.push(textureToCanvas(texture)!);
+            fth.textureNames.push(texture.path);
+            texture.gfxTexture = makeGraphicsTexture(device, texture.converted);
+            if (texture.gfxTexture == null) {
+                console.log(`Failed to make texture for ${texture.format}`)
             }
         } else {
-            console.log(`Failed to make texture for ${t.format}`)
+            console.log(`Failed to make texture for ${texture.format}`)
         }
-    })
+    }
     return fth;
 }
