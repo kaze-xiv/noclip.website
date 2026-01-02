@@ -18,7 +18,6 @@ import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpe
 import { Terrain } from "./Terrain";
 import { FFXIVFilesystem } from "./Filesystem";
 import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
-import { convertTexture, makeGraphicsTexture, Texture } from "./Texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import ArrayBufferSlice from "../ArrayBufferSlice";
 import { TextureListHolder } from "../ui";
@@ -493,32 +492,17 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     }
 }
 
-function textureToCanvas(texture: Texture): Viewer.Texture | null {
-    const converted = texture.converted;
-    if (!converted) return null;
-    const canvas = convertToCanvas(ArrayBufferSlice.fromView(converted.pixels), texture.width, texture.height);
-    canvas.title = texture.path;
-
-    const surfaces = [canvas];
-    const extraInfo = new Map<string, string>();
-    // extraInfo.set('Format', "IDK");
-    return {name: texture.path, surfaces, extraInfo};
-}
-
 export function processTextures(device: GfxDevice, filesystem: FFXIVFilesystem): FakeTextureHolder {
     const vTextures: Viewer.Texture[] = [];
     const fth = new FakeTextureHolder(vTextures);
     for (let [path, texture] of filesystem.textures.entries()) {
-        texture.converted = convertTexture(texture);
-        if (texture.converted) {
-            vTextures.push(textureToCanvas(texture)!);
-            fth.textureNames.push(texture.path);
-            texture.gfxTexture = makeGraphicsTexture(device, texture.converted);
-            if (texture.gfxTexture == null) {
-                console.log(`Failed to make texture for ${texture.format}`)
-            }
-        } else {
+        const gfxTexture = texture.createGfxTexture(device);
+        if (!gfxTexture) {
             console.log(`Failed to make texture for ${texture.format}`)
+        }
+        if (texture.canvas) {
+            vTextures.push({name: path, surfaces: [texture.canvas]});
+            fth.textureNames.push(texture.path);
         }
     }
     return fth;

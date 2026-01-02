@@ -6,6 +6,9 @@ import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
 import { assert } from "../util";
 import { GfxFormat } from "../gfx/platform/GfxPlatformFormat";
 import { DecodedSurfaceBC, DecodedSurfaceSW, decompressBC } from "../Common/bc_texture";
+import * as Viewer from "../viewer.js";
+import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
+import { FFXIVTexture } from "../../rust/pkg";
 
 export class Texture {
     public attributes: number;
@@ -15,10 +18,11 @@ export class Texture {
     public depth: number;
     public mipLevels: number;
     public arraySize: number;
+    public lodOffsets: number[];
     public data: ArrayBufferSlice;
 
-    public converted: DecodedSurfaceSW | null = null;
     public gfxTexture: GfxTexture | null = null;
+    public canvas: HTMLCanvasElement | null = null;
 
     constructor(public buffer: ArrayBufferSlice, public path: string) {
         const view = this.buffer.createDataView();
@@ -27,32 +31,63 @@ export class Texture {
         this.width = view.getUint16(8, true);
         this.height = view.getUint16(10, true);
         this.depth = view.getUint16(12, true);
-        this.mipLevels = view.getUint8(14);
-        this.arraySize = view.getUint8(15);
-        // skip
-        this.data = this.buffer.slice(74);
+        this.mipLevels = view.getUint16(14, true);
+        this.arraySize = view.getUint16(16, true);
+        this.data = this.buffer.slice(82);
     }
 
-}
-
-export function convertTexture(texture: Texture): DecodedSurfaceSW | null {
-    if (texture.format != TextureFormat.BC1) return null;
-    const x: DecodedSurfaceBC = {
-        width: texture.width,
-        height: texture.height,
-        depth: texture.depth,
-        flag: "SRGB", // ??
-        type: "BC1",
-        pixels: new Uint8Array(texture.data.arrayBuffer as any as ArrayBuffer) // idk dude
+    useSwConversion: boolean = false;
+    createGfxTexture(device: GfxDevice): GfxTexture | null {
+        if (this.format == TextureFormat.BC1) {
+            return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+        } else {
+            return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
+        }
+        // if (this.useSwConversion) {
+        //     return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+        // } else {
+        //     return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device);
+        // }
+        return null;
     }
-    const converted = decompressBC(x);
-    return converted;
-}
 
-export function makeGraphicsTexture(device: GfxDevice, surface: DecodedSurfaceSW): GfxTexture | null {
-    const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, surface.width, surface.height, 1));
-    device.uploadTextureData(gfxTexture, 0, [surface.pixels]);
-    return gfxTexture;
+    createGfxTextureThroughSwConversion(device: GfxDevice): GfxTexture | null {
+        if (this.format != TextureFormat.BC1) return null;
+        const x: DecodedSurfaceBC = {
+            width: this.width,
+            height: this.height,
+            depth: this.depth,
+            flag: "SRGB", // ??
+            type: "BC1",
+            pixels: new Uint8Array(this.data.arrayBuffer as any as ArrayBuffer) // idk dude
+        }
+        const pixels = decompressBC(x);
+
+        this.canvas = convertToCanvas(ArrayBufferSlice.fromView(pixels.pixels), this.width, this.height);
+
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, 1));
+        device.uploadTextureData(gfxTexture, 0, [pixels.pixels]);
+        return gfxTexture;
+    }
+
+    createGfxTextureThroughDirectUpload(device: GfxDevice): GfxTexture | null {
+        if (this.format != TextureFormat.BC1) return null;
+
+        console.log("Attempt to direct upload", this);
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.BC1_SRGB, this.width, this.height, this.mipLevels));
+        device.uploadTextureData(gfxTexture, 0, [this.buffer.createDataView(80)]);
+        return gfxTexture;
+    }
+
+    createGfxTextureThroughRustDecode(device: GfxDevice): GfxTexture | null {
+        const decode = FFXIVTexture.decode_bc7(this.buffer.createTypedArray(Uint8Array));
+
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, this.mipLevels));
+        device.uploadTextureData(gfxTexture, 0, [decode]);
+
+        this.canvas = convertToCanvas(ArrayBufferSlice.fromView(decode), this.width, this.height);
+        return gfxTexture;
+    }
 }
 
 
