@@ -1,4 +1,6 @@
+use physis::common::Platform;
 use physis::layer::{InstanceObject, LayerEntryData, LayerGroup};
+use physis::ReadableFile;
 use physis::sgb::Sgb;
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -23,7 +25,7 @@ pub struct FlatLayoutObject {
 #[wasm_bindgen]
 impl FFXIVLgb {
     pub fn parse(data: Vec<u8>) -> FFXIVLgb {
-        let lgb = LayerGroup::from_existing(data.as_slice()).unwrap();
+        let lgb = LayerGroup::from_existing(Platform::Win32, data.as_slice()).unwrap();
         let layers = lgb.chunks.iter().flat_map(|x| &x.layers);
         // TODO filter festivals
         let layers = layers.filter(|x| x.header.festival_id == 0);
@@ -141,7 +143,7 @@ pub struct FFXIVSgb {
 #[wasm_bindgen]
 impl FFXIVSgb {
     pub fn parse(data: Vec<u8>) -> FFXIVSgb {
-        let sgb = Sgb::from_existing(data.as_slice()).unwrap();
+        let sgb = Sgb::from_existing(Platform::Win32, data.as_slice()).unwrap();
         let layers = sgb.chunks.iter().flat_map(|x| &x.layers);
         let objs = layers.flat_map(|x| &x.objects);
 
