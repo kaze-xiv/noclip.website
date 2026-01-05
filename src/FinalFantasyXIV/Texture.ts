@@ -33,7 +33,7 @@ export class Texture {
         this.depth = view.getUint16(12, true);
         this.mipLevels = view.getUint16(14, true);
         this.arraySize = view.getUint16(16, true);
-        this.data = this.buffer.slice(82);
+        this.data = this.buffer.slice(80);
     }
 
     useSwConversion: boolean = false;
@@ -59,13 +59,13 @@ export class Texture {
             depth: this.depth,
             flag: "SRGB", // ??
             type: "BC1",
-            pixels: new Uint8Array(this.data.arrayBuffer as any as ArrayBuffer) // idk dude
+            pixels: this.data.createTypedArray(Uint8Array),
         }
         const pixels = decompressBC(x);
 
         this.canvas = convertToCanvas(ArrayBufferSlice.fromView(pixels.pixels), this.width, this.height);
 
-        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, 1));
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, this.mipLevels));
         device.uploadTextureData(gfxTexture, 0, [pixels.pixels]);
         return gfxTexture;
     }
