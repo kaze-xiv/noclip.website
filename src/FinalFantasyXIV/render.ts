@@ -78,6 +78,7 @@ void mainVS() {
 #ifdef FRAG
 void mainPS() {
     vec4 t_DiffuseMapColor = texture(SAMPLER_2D(u_Texture1), v_TexCoord0.xy);
+    if (t_DiffuseMapColor.a < .001) discard;
     vec3 t_NormalMap = texture(SAMPLER_2D(u_Texture2), v_TexCoord0.xy).xyz;
     vec3 t_LightDirection2 = normalize(vec3(.2, -1, .5));
     //t_NormalMap.z = 0.5;
