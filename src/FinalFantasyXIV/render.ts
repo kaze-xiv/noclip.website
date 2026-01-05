@@ -254,7 +254,7 @@ export class LayoutObjectsRenderer {
             const obj = this.objects[i];
 
             this.calculateModelMatrix(jointModelMatrix, obj);
-            mat4.mul(modelMatrix, jointModelMatrix, this.modelMatrix)
+            mat4.mul(modelMatrix, this.modelMatrix, jointModelMatrix)
 
             const renderer = this.objectRenderers[i];
             if (renderer) {
