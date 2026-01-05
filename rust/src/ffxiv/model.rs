@@ -3,6 +3,8 @@ use deku::writer::Writer;
 use deku::DekuWriter;
 use physis::model::{Part, MDL};
 use std::io::Cursor;
+use physis::common::Platform;
+use physis::ReadableFile;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen(getter_with_clone)]
@@ -19,7 +21,7 @@ impl FFXIVModel {
 }
 
 fn convert_mdl(data: Vec<u8>) -> Option<FFXIVModel> {
-    let mut mdl = MDL::from_existing(data.as_slice())?;
+    let mut mdl = MDL::from_existing(Platform::Win32, data.as_slice())?;
 
     let lod = mdl.lods.remove(0);
     let parts = lod.parts;
