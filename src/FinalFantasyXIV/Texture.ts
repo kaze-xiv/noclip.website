@@ -1,5 +1,5 @@
 import ArrayBufferSlice from "../ArrayBufferSlice";
-import { GfxDevice, GfxFormat, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
+import { GfxDevice, GfxFormat, GfxPlatform, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
 import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
 import { DecodedSurfaceBC, decompressBC } from "../Common/bc_texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
@@ -42,7 +42,7 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
-        if (device.queryTextureFormatSupported(target, this.width, this.height) && device.constructor.name != "GfxImplP_GL") {
+        if (device.queryTextureFormatSupported(target, this.width, this.height) && device.queryVendorInfo().platform == GfxPlatform.WebGPU) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         } else {
             if (target == GfxFormat.BC1) {
