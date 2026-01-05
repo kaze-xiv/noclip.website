@@ -8,8 +8,9 @@ export class Terrain {
     public plateCount: number;
 
     public models: FFXIVModel[];
+    public modelNames: string[]
 
-    constructor(private buffer: ArrayBufferSlice) {
+    constructor(private buffer: ArrayBufferSlice,) {
         const view = this.buffer.createDataView();
         this.plateCount = view.getUint32(4, true);
         this.plateSize = view.getUint32(8, true);

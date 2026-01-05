@@ -3,7 +3,6 @@ mod model;
 mod texture;
 mod material;
 mod lgb;
-
 use wasm_bindgen::prelude::*;
 
 // #[wasm_bindgen]
