@@ -1,12 +1,7 @@
 import ArrayBufferSlice from "../ArrayBufferSlice";
-import { vec2 } from "gl-matrix";
-import { GfxDevice, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
-import { XNA_SurfaceFormat, XNA_Texture2D } from "../Fez/XNB";
+import { GfxDevice, GfxFormat, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
 import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
-import { assert } from "../util";
-import { GfxFormat } from "../gfx/platform/GfxPlatformFormat";
-import { DecodedSurfaceBC, DecodedSurfaceSW, decompressBC } from "../Common/bc_texture";
-import * as Viewer from "../viewer.js";
+import { DecodedSurfaceBC, decompressBC } from "../Common/bc_texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import { FFXIVTexture } from "../../rust/pkg";
 
@@ -36,19 +31,26 @@ export class Texture {
         this.data = this.buffer.slice(80);
     }
 
-    useSwConversion: boolean = false;
+    getDesiredTargetGfxFormat(): GfxFormat | null {
+        if (this.format == TextureFormat.BC1) return GfxFormat.BC1;
+        else if (this.format == TextureFormat.BC3) return GfxFormat.BC3;
+        else if (this.format == TextureFormat.BC7) return GfxFormat.BC7;
+        return null
+    }
+
     createGfxTexture(device: GfxDevice): GfxTexture | null {
-        if (this.format == TextureFormat.BC1) {
-            return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+        if (this.gfxTexture) return this.gfxTexture;
+        const target = this.getDesiredTargetGfxFormat();
+        if (!target) return null;
+        if (device.queryTextureFormatSupported(target, this.width, this.height) && device.constructor.name != "GfxImplP_GL") {
+            return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         } else {
-            return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
+            if (target == GfxFormat.BC1) {
+                return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+            } else {
+                return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
+            }
         }
-        // if (this.useSwConversion) {
-        //     return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
-        // } else {
-        //     return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device);
-        // }
-        return null;
     }
 
     createGfxTextureThroughSwConversion(device: GfxDevice): GfxTexture | null {
@@ -57,7 +59,7 @@ export class Texture {
             width: this.width,
             height: this.height,
             depth: this.depth,
-            flag: "SRGB", // ??
+            flag: "UNORM", // ??
             type: "BC1",
             pixels: this.data.createTypedArray(Uint8Array),
         }
@@ -70,12 +72,9 @@ export class Texture {
         return gfxTexture;
     }
 
-    createGfxTextureThroughDirectUpload(device: GfxDevice): GfxTexture | null {
-        if (this.format != TextureFormat.BC1) return null;
-
-        console.log("Attempt to direct upload", this);
-        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.BC1_SRGB, this.width, this.height, this.mipLevels));
-        device.uploadTextureData(gfxTexture, 0, [this.buffer.createDataView(80)]);
+    createGfxTextureThroughDirectUpload(device: GfxDevice, gfxFormat: GfxFormat): GfxTexture | null {
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(gfxFormat, this.width, this.height, this.mipLevels));
+        device.uploadTextureData(gfxTexture, 0, [this.data.createTypedArray(Uint8Array)]);
         return gfxTexture;
     }
 
