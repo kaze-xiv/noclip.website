@@ -42,9 +42,13 @@ export class FFXIVFilesystem {
         console.timeEnd("Load textures");
 
         console.time("Load LGB")
-        const lgbNames = ["bg.lgb",
-            "planmap.lgb",
-            "planevent.lgb"
+        const lgbNames = [
+            "bg.lgb",
+            // "planmap.lgb",
+            // "planevent.lgb",
+            // "planner.lgb",
+            // "planlive.lgb",
+            // "vfx.lgb",
         ];
         const lgb = await Promise.all(lgbNames.map(lgb => fs.loadLgb(`${mapBase}/level/${lgb}`)));
         await fs.loadObjects(lgb);
