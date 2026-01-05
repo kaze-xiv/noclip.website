@@ -82,8 +82,8 @@ void mainPS() {
     vec3 t_NormalMap = texture(SAMPLER_2D(u_Texture2), v_TexCoord0.xy).xyz;
     vec3 t_LightDirection2 = normalize(vec3(.2, -1, .5));
     //t_NormalMap.z = 0.5;
-    //float eDotR = -dot(t_NormalMap, t_LightDirection2);
-    float eDotR = 0.5; // lighting workaround
+    float eDotR = -dot(t_NormalMap, t_LightDirection2);
+    //float eDotR = 0.5; // lighting workaround
 
     vec3 albedo = u_Color.a > 0.5 ? u_Color.xyz : t_DiffuseMapColor.rgb;
     gl_FragColor = vec4(albedo * (eDotR + 0.5), t_DiffuseMapColor.a);
