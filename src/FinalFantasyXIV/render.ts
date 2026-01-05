@@ -3,7 +3,7 @@ import { mat4, quat, ReadonlyMat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
 
-import { GfxBindingLayoutDescriptor, GfxBuffer, GfxBufferFrequencyHint, GfxBufferUsage, GfxCullMode, GfxDevice, GfxFormat, GfxIndexBufferDescriptor, GfxInputLayout, GfxInputLayoutBufferDescriptor, GfxMipFilterMode, GfxProgram, GfxSampler, GfxTexFilterMode, GfxVertexAttributeDescriptor, GfxVertexBufferDescriptor, GfxVertexBufferFrequency, GfxWrapMode } from '../gfx/platform/GfxPlatform.js';
+import { GfxBindingLayoutDescriptor, GfxBlendFactor, GfxBlendMode, GfxBuffer, GfxBufferFrequencyHint, GfxBufferUsage, GfxCullMode, GfxDevice, GfxFormat, GfxIndexBufferDescriptor, GfxInputLayout, GfxInputLayoutBufferDescriptor, GfxMipFilterMode, GfxProgram, GfxSampler, GfxTexFilterMode, GfxVertexAttributeDescriptor, GfxVertexBufferDescriptor, GfxVertexBufferFrequency, GfxWrapMode } from '../gfx/platform/GfxPlatform.js';
 import { fillColor, fillMatrix4x3, fillMatrix4x4 } from '../gfx/helpers/UniformBufferHelpers.js';
 import { makeBackbufferDescSimple, standardFullClearRenderPassDescriptor } from '../gfx/helpers/RenderGraphHelpers.js';
 import { GfxRenderHelper } from '../gfx/render/GfxRenderHelper.js';
@@ -21,6 +21,7 @@ import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import ArrayBufferSlice from "../ArrayBufferSlice";
 import { TextureListHolder } from "../ui";
+import { setAttachmentStateSimple } from "../gfx/helpers/GfxMegaStateDescriptorHelpers";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -83,7 +84,7 @@ void mainPS() {
     float eDotR = -dot(t_NormalMap, t_LightDirection2);
 
     vec3 albedo = u_Color.a > 0.5 ? u_Color.xyz : t_DiffuseMapColor.rgb;
-    gl_FragColor.rgb = albedo * (eDotR + 0.5);
+    gl_FragColor = vec4(albedo * (eDotR + 0.5), t_DiffuseMapColor.a);
 }
 #endif
 `;
@@ -442,6 +443,12 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         template.setBindingLayouts(bindingLayouts);
         template.setGfxProgram(this.globals.meshGfxProgram);
         template.setMegaStateFlags({cullMode: GfxCullMode.Back});
+
+        setAttachmentStateSimple(template.getMegaStateFlags(), {
+            blendMode: GfxBlendMode.Add,
+            blendSrcFactor: GfxBlendFactor.SrcAlpha,
+            blendDstFactor: GfxBlendFactor.OneMinusSrcAlpha,
+        });
 
         let offs = template.allocateUniformBuffer(IVProgram.ub_SceneParams, 32);
         const mapped = template.mapUniformBufferF32(IVProgram.ub_SceneParams);
