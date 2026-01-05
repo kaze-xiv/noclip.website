@@ -42,10 +42,29 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
+        console.log("device.queryTextureFormatSupported(target, this.width, this.height)", device.queryTextureFormatSupported(target, this.width, this.height))
+        this.createCanvas(device);
+
         if (device.queryTextureFormatSupported(target, this.width, this.height)) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         }
+
         return null;
+    }
+
+    createCanvas(device: GfxDevice) {
+        if (this.format != TextureFormat.BC1) return;
+        const x: DecodedSurfaceBC = {
+            width: this.width,
+            height: this.height,
+            depth: this.depth,
+            flag: "UNORM", // ??
+            type: "BC1",
+            pixels: this.data.createTypedArray(Uint8Array),
+        }
+        const pixels = decompressBC(x);
+
+        this.canvas = convertToCanvas(ArrayBufferSlice.fromView(pixels.pixels), this.width, this.height);
     }
 
     createGfxTextureThroughDirectUpload(device: GfxDevice, gfxFormat: GfxFormat): GfxTexture | null {
