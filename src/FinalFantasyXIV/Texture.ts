@@ -1,5 +1,5 @@
 import ArrayBufferSlice from "../ArrayBufferSlice";
-import { GfxDevice, GfxFormat, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
+import { GfxDevice, GfxFormat, GfxPlatform, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
 import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
 import { DecodedSurfaceBC, decompressBC } from "../Common/bc_texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
@@ -42,49 +42,15 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
-        if (device.queryTextureFormatSupported(target, this.width, this.height) && device.constructor.name != "GfxImplP_GL") {
+        if (device.queryTextureFormatSupported(target, this.width, this.height)) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
-        } else {
-            if (target == GfxFormat.BC1) {
-                return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
-            } else {
-                return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
-            }
         }
-    }
-
-    createGfxTextureThroughSwConversion(device: GfxDevice): GfxTexture | null {
-        if (this.format != TextureFormat.BC1) return null;
-        const x: DecodedSurfaceBC = {
-            width: this.width,
-            height: this.height,
-            depth: this.depth,
-            flag: "UNORM", // ??
-            type: "BC1",
-            pixels: this.data.createTypedArray(Uint8Array),
-        }
-        const pixels = decompressBC(x);
-
-        this.canvas = convertToCanvas(ArrayBufferSlice.fromView(pixels.pixels), this.width, this.height);
-
-        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, this.mipLevels));
-        device.uploadTextureData(gfxTexture, 0, [pixels.pixels]);
-        return gfxTexture;
+        return null;
     }
 
     createGfxTextureThroughDirectUpload(device: GfxDevice, gfxFormat: GfxFormat): GfxTexture | null {
         const gfxTexture = device.createTexture(makeTextureDescriptor2D(gfxFormat, this.width, this.height, this.mipLevels));
         device.uploadTextureData(gfxTexture, 0, [this.data.createTypedArray(Uint8Array)]);
-        return gfxTexture;
-    }
-
-    createGfxTextureThroughRustDecode(device: GfxDevice): GfxTexture | null {
-        const decode = FFXIVTexture.decode_bc7(this.buffer.createTypedArray(Uint8Array));
-
-        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, this.mipLevels));
-        device.uploadTextureData(gfxTexture, 0, [decode]);
-
-        this.canvas = convertToCanvas(ArrayBufferSlice.fromView(decode), this.width, this.height);
         return gfxTexture;
     }
 }
