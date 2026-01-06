@@ -44,7 +44,7 @@ export class FFXIVFilesystem {
         console.time("Load LGB")
         const lgbNames = [
             "bg.lgb",
-            // "planmap.lgb",
+            "planmap.lgb",
             // "planevent.lgb",
             // "planner.lgb",
             // "planlive.lgb",
