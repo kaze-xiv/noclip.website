@@ -4,6 +4,7 @@ import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
 import { DecodedSurfaceBC, decompressBC } from "../Common/bc_texture";
 import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
 import { FFXIVTexture } from "../../rust/pkg";
+import { calcMipLevelByteSize } from "../gfx/helpers/TextureHelpers";
 
 export class Texture {
     public attributes: number;
@@ -42,7 +43,7 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
-        if (device.queryTextureFormatSupported(target, this.width, this.height) && device.queryVendorInfo().platform == GfxPlatform.WebGPU) {
+        if (device.queryTextureFormatSupported(target, this.width, this.height)) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         } else {
             if (target == GfxFormat.BC1) {
@@ -74,7 +75,17 @@ export class Texture {
 
     createGfxTextureThroughDirectUpload(device: GfxDevice, gfxFormat: GfxFormat): GfxTexture | null {
         const gfxTexture = device.createTexture(makeTextureDescriptor2D(gfxFormat, this.width, this.height, this.mipLevels));
-        device.uploadTextureData(gfxTexture, 0, [this.data.createTypedArray(Uint8Array)]);
+        const mipDatas: Uint8Array[] = [];
+        let dataOffs = 0;
+        let mipW = this.width, mipH = this.height;
+        for (let i = 0; i < this.mipLevels; i++) {
+            const size = calcMipLevelByteSize(gfxFormat, mipW, mipH);
+            mipDatas.push(this.data.createTypedArray(Uint8Array, dataOffs, size));
+            mipW >>= 1;
+            mipH >>= 1;
+            dataOffs += size;
+        }
+        device.uploadTextureData(gfxTexture, 0, mipDatas);
         return gfxTexture;
     }
 
