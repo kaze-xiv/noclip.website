@@ -196,13 +196,18 @@ export class FFXIVFilesystem {
     }
 
     private async loadPart(path: string): Promise<FFXIVModel | null> {
-        const exists = this.models.get(path)
-        if (exists) return exists;
-        const data = await this.dataFetcher.fetchData(`${pathBase}/${path}`, {allow404: true});
-        const model = FFXIVSceneManager.parse_mdl(new Uint8Array(data.arrayBuffer));
-        if (!model) return null;
-        this.models.set(path, model);
-        return model;
+        try {
+            const exists = this.models.get(path)
+            if (exists) return exists;
+            const data = await this.dataFetcher.fetchData(`${pathBase}/${path}`, {allow404: true});
+            const model = FFXIVSceneManager.parse_mdl(new Uint8Array(data.arrayBuffer));
+            if (!model) return null;
+            this.models.set(path, model);
+            return model;
+        } catch {
+            console.error(`Failed to load ${path}`);
+            return null;
+        }
     }
 
     private async loadMaterial(path: string): Promise<FFXIVMaterial> {
