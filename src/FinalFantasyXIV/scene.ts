@@ -23,28 +23,38 @@ export interface SceneNode {
 export interface SceneGraph extends SceneNode {
 }
 
-class SceneGraphCreator {
+export class SceneGraphCreator {
     constructor(private modelCache: { [key: string]: ModelRenderer }, private fs: FFXIVFilesystem) {
     }
 
-    createSceneGraph(): SceneGraph {
+    createRootNode(): SceneGraph {
         return {
             name: "Root Node",
             renderer: null,
             data: null, model_matrix: new Float32Array(mat4.create()),
-            children: [
-                this.createTerrainSceneNode(),
-                ...[...this.fs.lgbs.entries()].map(([name, lgb]) => this.createLgbSceneNode(name, lgb)),
-            ],
+            children: [],
             animationController: null,
         }
     }
 
-    createTerrainSceneNode(): SceneNode {
+    // createSceneGraph(): SceneGraph {
+    //     const children: SceneNode[] = [];
+    //
+    //     if (this.fs.terrain) {
+    //         children.push(this.createTerrainSceneNode(this.fs.terrain!));
+    //     }
+    //
+    //     for (let [name, lgb] of this.fs.lgbs) {
+    //         children.push(this.createLgbSceneNode(name, lgb));
+    //     }
+    //
+    //
+    // }
+
+    createTerrainSceneNode(terrain: Terrain): SceneNode {
         const vec2scratch = vec2.create();
         const vec3scratch = vec3.create();
 
-        const terrain = this.fs.terrain;
         const terrainPlateNodes: SceneNode[] = new Array(terrain.plateCount);
         for (let i = 0; i < terrain.plateCount; i++) {
             const model_matrix = mat4.create();
@@ -61,8 +71,8 @@ class SceneGraphCreator {
 
             terrainPlateNodes[i] = {
                 name: `Terrain plate ${i}`,
-                renderer: this.modelCache[this.fs.terrain.modelNames[i]],
-                children: null, data: this.fs.terrain.models[i], model_matrix: new Float32Array(model_matrix),
+                renderer: this.modelCache[terrain.modelNames[i]],
+                children: null, data: terrain.models[i], model_matrix: new Float32Array(model_matrix),
                 animationController: null,
             };
         }
@@ -134,16 +144,12 @@ class SceneGraphCreator {
     }
 }
 
-export function createSceneGraph(globals: RenderGlobals): SceneGraph {
-    return new SceneGraphCreator(globals.modelCache, globals.filesystem).createSceneGraph();
-}
-
 const scratchVec4 = vec4.create();
 
 
-export function *walkScene(node: SceneNode): Generator<SceneNode> {
+export function* walkScene(node: SceneNode): Generator<SceneNode> {
     yield node;
     for (let i = 0; i < (node.children?.length ?? 0); i++) {
-    for (let x of walkScene(node.children![i])) yield x;
-}
+        for (let x of walkScene(node.children![i])) yield x;
+    }
 }

@@ -20,9 +20,10 @@ import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import * as UI from "../ui";
 import { ScrollSelectItemType } from "../ui";
 import { setAttachmentStateSimple } from "../gfx/helpers/GfxMegaStateDescriptorHelpers";
-import { createSceneGraph, SceneGraph, SceneNode } from "./scene";
+import { SceneGraph, SceneGraphCreator, SceneNode } from "./scene";
 import { Animator } from "./animate";
 import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
+import { SgbFile } from "./sgb";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -303,9 +304,31 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
             globals.modelCache[path] = new ModelRenderer(globals, model);
         }
         console.timeEnd("Create model renderers")
+    }
 
+    public setSceneSgb(name: string, sgb: SgbFile) {
         console.time("Create scene")
-        this.scene = createSceneGraph(globals);
+        const creator = new SceneGraphCreator(this.globals.modelCache, this.globals.filesystem);
+        const root = creator.createRootNode();
+        root.children = [creator.createSgbSceneNode(name, sgb)];
+        this.scene = root;
+        console.timeEnd("Create scene")
+    }
+
+    public setSceneTerrain() {
+        console.time("Create scene")
+        const creator = new SceneGraphCreator(this.globals.modelCache, this.globals.filesystem);
+        const root = creator.createRootNode();
+        const children: SceneNode[] = [];
+        if (this.globals.filesystem.terrain) {
+            children.push(creator.createTerrainSceneNode(this.globals.filesystem.terrain!));
+        }
+
+        for (let [name, lgb] of this.globals.filesystem.lgbs) {
+            children.push(creator.createLgbSceneNode(name, lgb));
+        }
+        root.children = children;
+        this.scene = root;
         console.timeEnd("Create scene")
     }
 

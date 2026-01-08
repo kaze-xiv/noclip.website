@@ -8,7 +8,7 @@ import { SgbFile, shimLgb, shimSgb } from "./sgb";
 const pathBase = "FFXIV";
 
 export class FFXIVFilesystem {
-    public terrain: Terrain;
+    public terrain: Terrain | null;
     public models = new Map<string, FFXIVModel>();
     public textures = new Map<string, Texture>();
     public materials = new Map<string, FFXIVMaterial>();
@@ -18,11 +18,9 @@ export class FFXIVFilesystem {
     constructor(public dataFetcher: DataFetcher) {
     }
 
-    static async load(dataFetcher: DataFetcher, levelId: string): Promise<FFXIVFilesystem> {
-        const fs = new FFXIVFilesystem(dataFetcher);
-        const mapBase = `${levelId}`;
+    async loadTerrain(levelId: string) {
         console.time("Load terrain");
-        const tera = fs.terrain = await fs.loadTerrainFile(mapBase);
+        const tera = this.terrain = await this.loadTerrainFile(levelId);
         console.timeEnd("Load terrain");
 
         const materialNames = new Set<string>();
@@ -31,15 +29,15 @@ export class FFXIVFilesystem {
         for (let i = 0; i < materialsInTera.length; i++)
             materialNames.add(materialsInTera[i]);
 
-        console.time("Load materials");
-        const materials = await Promise.all([...materialNames.values()].map(mat => fs.loadMaterial(mat)));
-        console.timeEnd("Load materials");
+        console.time("Load terrain materials");
+        const materials = await Promise.all([...materialNames.values()].map(mat => this.loadMaterial(mat)));
+        console.timeEnd("Load terrain materials");
 
         // discover textures
-        console.time("Load textures");
+        console.time("Load terrain textures");
         const textureNames = new Set<string>(materials.flatMap(m => m.texture_names));
-        const textures = await Promise.all([...textureNames.values()].map(t => fs.loadTexture(t)));
-        console.timeEnd("Load textures");
+        const textures = await Promise.all([...textureNames.values()].map(t => this.loadTexture(t)));
+        console.timeEnd("Load terrain textures");
 
         console.time("Load LGB")
         const lgbNames = [
@@ -50,10 +48,8 @@ export class FFXIVFilesystem {
             // "planlive.lgb",
             // "vfx.lgb",
         ];
-        const lgb = await Promise.all(lgbNames.map(lgb => fs.loadLgb(`${mapBase}/level/${lgb}`)));
-        await fs.loadObjects(lgb);
-
-        return fs;
+        const lgb = await Promise.all(lgbNames.map(lgb => this.loadLgb(`${levelId}/level/${lgb}`)));
+        await this.loadObjects(lgb);
     }
 
     async loadObjects(lgbs: FFXIVLgb[]) {
@@ -146,7 +142,6 @@ export class FFXIVFilesystem {
                 sgbFiles = notDone;
                 foundMore = true;
             }
-
         }
         console.timeEnd("Load SGB")
 
@@ -168,13 +163,60 @@ export class FFXIVFilesystem {
         return lgb;
     }
 
-    private async loadSgb(path: string): Promise<SgbFile> {
+    async loadSgb(path: string): Promise<SgbFile> {
         const attempt = this.sgbs.get(path);
         if (attempt) return attempt;
         const data = await this.dataFetcher.fetchData(`${pathBase}/${path}`);
         const sgb = shimSgb(FFXIVSgb.parse(new Uint8Array(data.arrayBuffer)));
         this.sgbs.set(path, sgb);
         return sgb;
+    }
+
+    // ew
+    public async recursiveLoadSgb(path: string) {
+        const materialNames = new Set<string>();
+
+        console.time("Load SGB")
+        const loadedSgbFiles = new Set<string>();
+        let sgbFiles = new Set<string>();
+        sgbFiles.add(path);
+        let foundMore = true;
+        while (foundMore) {
+            foundMore = false;
+            console.log("Discovered", sgbFiles.size, "sgb files in lgbs");
+
+            const sgbF = [...sgbFiles];
+            for (let i = 0; i < sgbF.length; i++) {
+                loadedSgbFiles.add(sgbF[i]);
+            }
+            const sgb = await Promise.all([...sgbFiles].map(sgb => this.loadSgb(sgb)));
+            const modelPathsInSgb = [...new Set(sgb.flatMap(l => Array.from(this.modelsInSgb(l))))];
+            console.log("Discovered", modelPathsInSgb.length, "model files in sgbs");
+            const modelsInSgb = await Promise.all([...modelPathsInSgb.values()].map(model => this.loadPart(model)));
+            const materialsInModelsInSgb = modelsInSgb.flatMap(model => model?.meshes?.map(mesh => model.materials[mesh.get_material_index()]) ?? []);
+            for (let i = 0; i < materialsInModelsInSgb.length; i++) {
+                materialNames.add(materialsInModelsInSgb[i]);
+            }
+
+            const moreSgb = new Set(sgb.flatMap(l => Array.from(this.sgbsInSgb(l))));
+            const notDone = ((moreSgb as any).difference)(loadedSgbFiles) as Set<string>;
+            if (notDone.size > 0) {
+                sgbFiles = notDone;
+                foundMore = true;
+            }
+        }
+        console.timeEnd("Load SGB")
+
+        console.time("Load materials");
+        const materials = await Promise.all([...materialNames.values()].map(mat => this.loadMaterial(mat)));
+        console.timeEnd("Load materials");
+
+        // discover textures
+        console.time("Load textures");
+        const textureNames = new Set<string>(materials.flatMap(m => m.texture_names));
+        const textures = await Promise.all([...textureNames.values()].map(t => this.loadTexture(t)));
+        console.timeEnd("Load textures");
+        return this.loadSgb(path);
     }
 
     private async loadTerrainFile(mapBase: string): Promise<Terrain> {

@@ -8,14 +8,16 @@ import { FFXIVFilesystem } from "./Filesystem";
 
 class FFXIVMapDesc implements SceneDesc {
 
-    constructor(public id: string, public name: string = id, public gobj_roots: number[] | null = null) {
+    constructor(public id: string, public name: string = id) {
     }
 
     public async createScene(device: GfxDevice, context: SceneContext): Promise<SceneGfx> {
         rust.init_panic_hook();
 
+        const fs = new FFXIVFilesystem(context.dataFetcher);
+
         console.time("Load FS");
-        const fs = await FFXIVFilesystem.load(context.dataFetcher, this.id);
+        await fs.loadTerrain(this.id);
         console.timeEnd("Load FS");
 
         console.time("Process textures");
@@ -23,12 +25,41 @@ class FFXIVMapDesc implements SceneDesc {
         console.timeEnd("Process textures");
 
         const scene = new FFXIVRenderer(device, fs);
+        scene.setSceneTerrain();
         scene.textureHolder = vTextures;
         return scene;
     }
 }
 
+class FFXIVSgbDesc implements SceneDesc {
+
+    constructor(public id: string, public name: string = id) {
+    }
+
+    public async createScene(device: GfxDevice, context: SceneContext): Promise<SceneGfx> {
+        rust.init_panic_hook();
+
+        const fs = new FFXIVFilesystem(context.dataFetcher);
+
+        console.time("Load FS");
+        const sgb = await fs.recursiveLoadSgb(this.id);
+        console.timeEnd("Load FS");
+
+        console.time("Process textures");
+        const vTextures = processTextures(device, fs);
+        console.timeEnd("Process textures");
+
+        const renderer = new FFXIVRenderer(device, fs);
+        renderer.setSceneSgb(this.id, sgb);
+        console.log(renderer.scene);
+        renderer.textureHolder = vTextures;
+        return renderer;
+    }
+}
+
 const sceneDescs = [
+    "Debug",
+    new FFXIVSgbDesc(`bgcommon/world/aet/shared/for_bg/sgbg_w_aet_001_01a.sgb`, "Limsa Aetheryte"),
     "The Black Shroud",
     new FFXIVMapDesc(`bg/ffxiv/fst_f1/bah/f1b1`, `The Black Shroud - Dalamud's Shadow`),
     new FFXIVMapDesc(`bg/ffxiv/fst_f1/bah/f1b2`, `The Black Shroud - The Outer Coil - Incubation Bay`),
