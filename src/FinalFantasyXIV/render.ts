@@ -1,4 +1,4 @@
-import { mat4, ReadonlyMat4 } from 'gl-matrix';
+import { mat4, ReadonlyMat4, vec3 } from 'gl-matrix';
 
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
@@ -21,6 +21,8 @@ import * as UI from "../ui";
 import { ScrollSelectItemType } from "../ui";
 import { setAttachmentStateSimple } from "../gfx/helpers/GfxMegaStateDescriptorHelpers";
 import { createSceneGraph, SceneGraph, SceneNode } from "./scene";
+import { Animator } from "./animate";
+import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -282,6 +284,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     globals: RenderGlobals;
     public scene: SceneGraph;
     public textureHolder: UI.TextureListHolder;
+    public animator = new Animator();
 
     constructor(device: GfxDevice, filesystem: FFXIVFilesystem) {
         const globals = this.globals = new RenderGlobals(device, filesystem);
@@ -332,6 +335,8 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
         renderHelper.renderInstManager.setCurrentList(this.globals.renderInstListMain);
 
+        this.animator.animate(this.scene, viewerInput.time);
+
         this.prepareToRenderScene(viewerInput);
 
         renderHelper.renderInstManager.popTemplate();
@@ -342,12 +347,23 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         this.prepareToRenderNode(mat4.create(), this.scene, viewerInput);
     }
 
+    scratchVec3 = vec3.create();
+    debugCanvas = getDebugOverlayCanvas2D();
+
     public prepareToRenderNode(parent_transform: mat4, node: SceneNode, viewerInput: Viewer.ViewerRenderInput) {
         const invert = mat4.create();
         mat4.invert(invert, node.model_matrix);
 
         mat4.mul(parent_transform, parent_transform, node.model_matrix);
         node?.renderer?.prepareToRender(this.globals.renderInstManager, viewerInput, parent_transform);
+
+        // mat4.getTranslation(this.scratchVec3, parent_transform);
+        // drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node.name}`, 10, OpaqueBlack, {
+        //     font: "6pt monospace",
+        //     align: "center"
+        // })
+        // drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
+
 
         for (let i = 0; i < (node.children?.length ?? 0); i++) {
             this.prepareToRenderNode(parent_transform, node.children![i], viewerInput);

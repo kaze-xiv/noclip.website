@@ -6,12 +6,14 @@ export interface SgbFile {
     discoveredModels: string[];
     discoveredSgbs: string[];
     animation_controller: rust.AnimationController;
+    inner: rust.FFXIVSgb;
 }
 
 export function shimSgb(file: rust.FFXIVSgb): SgbFile {
     const out = {
         discoveredModels: file.discoveredModels, discoveredSgbs: file.discoveredSgbs, objects: file.flatten_objects().map(shimFlatLayoutObject),
-        animation_controller: file.animation_controller
+        animation_controller: file.animation_controller,
+        inner: file,
     }
     return out;
 }

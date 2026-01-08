@@ -5,15 +5,17 @@ import { ModelRenderer, RenderGlobals } from "./render";
 import { FFXIVFilesystem } from "./Filesystem";
 import { FlatLayoutObject } from "./FlatLayoutObject";
 import { SgbFile } from "./sgb";
+import { rust } from "../rustlib";
 
-type SceneNodeData = FFXIVLgb | SgbFile | FFXIVModel | Terrain | FlatLayoutObject;
+export type SceneNodeData = FFXIVLgb | SgbFile | FFXIVModel | Terrain | FlatLayoutObject;
 
 export interface SceneNode {
     name: string | null;
     data: SceneNodeData | null;
     renderer: ModelRenderer | null;
+    animationController: rust.AnimationController | null;
 
-    model_matrix: mat4;
+    model_matrix: Float32Array;
 
     children: SceneNode[] | null;
 }
@@ -29,11 +31,12 @@ class SceneGraphCreator {
         return {
             name: "Root Node",
             renderer: null,
-            data: null, model_matrix: mat4.create(),
+            data: null, model_matrix: new Float32Array(mat4.create()),
             children: [
                 this.createTerrainSceneNode(),
                 ...[...this.fs.lgbs.entries()].map(([name, lgb]) => this.createLgbSceneNode(name, lgb)),
-            ]
+            ],
+            animationController: null,
         }
     }
 
@@ -59,14 +62,16 @@ class SceneGraphCreator {
             terrainPlateNodes[i] = {
                 name: `Terrain plate ${i}`,
                 renderer: this.modelCache[this.fs.terrain.modelNames[i]],
-                children: null, data: this.fs.terrain.models[i], model_matrix: model_matrix
+                children: null, data: this.fs.terrain.models[i], model_matrix: new Float32Array(model_matrix),
+                animationController: null,
             };
         }
         const terrainModel = mat4.create();
         return {
             name: `Terrain`,
             renderer: null,
-            children: terrainPlateNodes, data: terrain, model_matrix: terrainModel,
+            children: terrainPlateNodes, data: terrain, model_matrix: new Float32Array(terrainModel),
+            animationController: null,
         }
     }
 
@@ -82,7 +87,8 @@ class SceneGraphCreator {
 
         return {
             name: `LGB ${name}`,
-            children: children, data: lgb, renderer: null, model_matrix: rootModel,
+            children: children, data: lgb, renderer: null, model_matrix: new Float32Array(rootModel),
+            animationController: null,
         }
     }
 
@@ -97,16 +103,14 @@ class SceneGraphCreator {
 
         return {
             name: `SGB ${name}`,
-            children: children, data: sgb, renderer: null, model_matrix: rootModel,
+            children: children, data: sgb, renderer: null, model_matrix: new Float32Array(rootModel),
+            animationController: sgb.inner.animation_controller,
         }
     }
 
     createObjectSceneNode(obj: FlatLayoutObject): SceneNode {
-        const test = mat4.create();
-        const rot = scratchVec4;
-        const origRot = obj.rotation;
-        quat.fromEuler(rot, origRot[0] / Math.PI * 180, origRot[1] / Math.PI * 180, origRot[2] / Math.PI * 180);
-        mat4.fromRotationTranslationScale(test, rot, obj.translation, obj.scale);
+        const test = new Float32Array(mat4.create());
+        obj.write_model_matrix(test);
 
         let baseNode: SceneNode = {
             name: obj.asset_name ?? null,
@@ -114,14 +118,16 @@ class SceneGraphCreator {
             children: null,
             data: obj,
             model_matrix: test, // TODO animate
+            animationController: null,
         }
 
         if (obj.layer_type == 0x01) {
             baseNode.renderer = this.modelCache[obj.asset_name!];
         } else if (obj.layer_type == 0x06) {
-            const sgb = this.fs.sgbs.get(obj.asset_name!);
+            const assetName = obj.asset_name!;
+            const sgb = this.fs.sgbs.get(assetName);
             if (sgb) {
-                baseNode.children = [this.createSgbSceneNode(obj.asset_name!, sgb)];
+                baseNode.children = [this.createSgbSceneNode(assetName, sgb)];
             }
         }
         return baseNode;
@@ -133,3 +139,11 @@ export function createSceneGraph(globals: RenderGlobals): SceneGraph {
 }
 
 const scratchVec4 = vec4.create();
+
+
+export function *walkScene(node: SceneNode): Generator<SceneNode> {
+    yield node;
+    for (let i = 0; i < (node.children?.length ?? 0); i++) {
+    for (let x of walkScene(node.children![i])) yield x;
+}
+}

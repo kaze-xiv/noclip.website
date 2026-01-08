@@ -28,11 +28,15 @@ pub struct FlatLayoutObject {
     pub asset_name: Option<String>,
     pub festival_id: u16,
     pub festival_phase_id: u16,
-    pub translation: Vec<f32>,
-    pub rotation: Vec<f32>,
-    pub scale: Vec<f32>,
     pub instance_id: u32,
     mm: Transform3D<f32>,
+}
+
+#[wasm_bindgen]
+impl FlatLayoutObject {
+    pub fn write_model_matrix(&self, target: &mut [f32]) {
+        target.copy_from_slice(&self.mm.to_array())
+    }
 }
 
 #[wasm_bindgen]
@@ -56,11 +60,12 @@ struct InstanceWalker {
 }
 
 fn convert_transform(original: Transformation) -> Transform3D<f32> {
-    let rot = Rotation3D::euler(Angle::degrees(original.rotation[0]), Angle::degrees(original.rotation[1]), Angle::degrees(original.rotation[2]));
+    // let rot = Rotation3D::euler(Angle::degrees(original.rotation[0]), Angle::degrees(original.rotation[1]), Angle::degrees(original.rotation[2]));
+    let rot = Rotation3D::euler(Angle::radians(original.rotation[0]), Angle::radians(original.rotation[1]), Angle::radians(original.rotation[2]));
     Transform3D::identity()
-        .then_translate(Vector3D::from(original.translation))
-        .then(&rot.to_transform())
         .then_scale(original.scale[0], original.scale[1], original.scale[2])
+        .then(&rot.to_transform())
+        .then_translate(Vector3D::from(original.translation))
 }
 
 // this is supposed to be generic but rust is hard
@@ -87,10 +92,6 @@ fn walk<'a>(layers: impl Iterator<Item=&'a Layer>) -> InstanceWalker {
                     objects.push(FlatLayoutObject {
                         layer_type: asset_type,
                         asset_name: Some(bg.asset_path.value.clone()),
-                        // mm:
-                        translation: obj.transform.translation.to_vec(),
-                        rotation: obj.transform.rotation.to_vec(),
-                        scale: obj.transform.scale.to_vec(),
                         festival_id,
                         festival_phase_id, instance_id, mm
                     })
@@ -100,9 +101,6 @@ fn walk<'a>(layers: impl Iterator<Item=&'a Layer>) -> InstanceWalker {
                     objects.push(FlatLayoutObject {
                         layer_type: asset_type,
                         asset_name: Some(asset_path.clone()),
-                        translation: obj.transform.translation.to_vec(),
-                        rotation: obj.transform.rotation.to_vec(),
-                        scale: obj.transform.scale.to_vec(),
                         festival_id,
                         festival_phase_id, instance_id, mm
                     });
@@ -113,9 +111,6 @@ fn walk<'a>(layers: impl Iterator<Item=&'a Layer>) -> InstanceWalker {
                 _ => objects.push(FlatLayoutObject {
                     layer_type: asset_type,
                     asset_name: None,
-                    translation: obj.transform.translation.to_vec(),
-                    rotation: obj.transform.rotation.to_vec(),
-                    scale: obj.transform.scale.to_vec(),
                     festival_id,
                     festival_phase_id, instance_id, mm
                 }),
@@ -194,7 +189,9 @@ impl FFXIVSgb {
                                 };
                                 animationData.push(((*timelineNode).clone(), my_fcurve.map(|x| (*x).clone()).clone()));
                             }
-                            out.entry(instance_id).insert_entry(animationData);
+                            if animationData.len() > 0 {
+                                out.entry(instance_id).insert_entry(animationData);
+                            }
                         }
                     }
                 }
@@ -220,8 +217,9 @@ impl AnimationController {
                 for timeline in timelines {
                     match timeline {
                         (TimelineNodeData::C013(model_animation), Some(curves)) => {
+                            let does_loop = model_animation.duration as f32;
                             for curve in curves {
-                                let transform = curve_to_transform3d(curve, dt);
+                                let transform = curve_to_transform3d(curve, dt, Some(does_loop));
                                 mm = mm.then(&transform);
                             }
                         }
@@ -235,15 +233,19 @@ impl AnimationController {
     }
 }
 
-fn curve_to_transform3d(curve: &TmfcData, at: f32) -> Transform3D<f32> {
+fn curve_to_transform3d(curve: &TmfcData, at: f32, loop_duration: Option<f32>) -> Transform3D<f32> {
     if curve.rows.len() == 0 {
         return Transform3D::identity();
     }
     if curve.rows.len() == 1 {
         return Transform3D::identity();
     }
-    let start = curve.rows.iter().find(|x| x.time <= at).or(curve.rows.first()).unwrap();
-    let end = curve.rows.iter().find(|x| x.time >= at).or(curve.rows.last()).unwrap();
+    let looped_at = match loop_duration {
+        Some(loop_duration) => at % loop_duration,
+        None => at,
+    };
+    let start = curve.rows.iter().find(|x| x.time <= looped_at).or(curve.rows.first()).unwrap();
+    let end = curve.rows.iter().find(|x| x.time >= looped_at).or(curve.rows.last()).unwrap();
     println!("{:?}, {:?}", start, end);
     let a = (at - start.time) / (end.time - start.time);
 
@@ -258,7 +260,7 @@ fn curve_to_transform3d(curve: &TmfcData, at: f32) -> Transform3D<f32> {
         Attribute::RotationX => Rotation3D::around_x(Angle::degrees(value)).to_transform(),
         Attribute::RotationY => Rotation3D::around_y(Angle::degrees(value)).to_transform(),
         Attribute::RotationZ => Rotation3D::around_z(Angle::degrees(value)).to_transform(),
-        Attribute::Unknown(_) => Transform3D::identity(),
+        _ => Transform3D::identity(),
     }
 }
 
@@ -318,16 +320,9 @@ mod tests {
         let path = PathBuf::from("/data/Projects/noclip.website/data/FFXIV/bgcommon/world/aet/shared/for_bg/sgbg_w_aet_001_01a.sgb");
         let sgb = Sgb::from_existing(Platform::Win32, &read(path.clone()).unwrap()).unwrap();
 
-        let wrapper = FFXIVSgb::parse(read(path.clone()).unwrap());
-        // wrapper.animate();
-
-        let mut file = File::create("/tmp/aether.tmb").unwrap();
-        let mut writer = BufWriter::new(file);
-        // let mut cursor = Cursor::new(&mut file);
-        let tmb = &sgb.sections[0].timelines.timelines[0].tmb;
-        // Tmb::write_options(tmb, &mut writer, Endian::Little, ()).unwrap();
-        // writer.flush().unwrap();
-        println!("Wait")
+        for obj in sgb.sections.iter().flat_map(|s| s.layer_groups.iter().flat_map(|lg| &lg.layers).flat_map(|l| &l.objects)) {
+            println!("{:?}", obj.transform.rotation);
+        }
     }
 
     #[test]
