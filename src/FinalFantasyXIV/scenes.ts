@@ -4,8 +4,8 @@ import { SceneGfx } from "../viewer";
 
 import { rust } from '../rustlib.js';
 import { FFXIVFilesystem } from "./files/Filesystem";
-import { SceneLoader } from "./scene_loader";
-import { SceneNode } from "./scene";
+import { SceneLoader } from "./sceneloader";
+import { SceneNode } from "./scenegraph";
 import { FFXivSceneRenderer } from "./render/render";
 
 abstract class FFXIVSceneGraphDesc implements SceneDesc {
@@ -52,6 +52,9 @@ class FFXIVSgbDesc extends FFXIVSceneGraphDesc {
 const sceneDescs = [
     "Debug",
     new FFXIVSgbDesc(`bgcommon/world/aet/shared/for_bg/sgbg_w_aet_001_01a.sgb`, "Limsa Aetheryte"),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t1`, `La Noscea - Limsa Lominsa Upper Decks`),
+    new FFXIVMapDesc(`bg/ffxiv/sea_s1/twn/s1t2`, `La Noscea - Limsa Lominsa Lower Decks`),
+
     "The Black Shroud",
     new FFXIVMapDesc(`bg/ffxiv/fst_f1/bah/f1b1`, `The Black Shroud - Dalamud's Shadow`),
     new FFXIVMapDesc(`bg/ffxiv/fst_f1/bah/f1b2`, `The Black Shroud - The Outer Coil - Incubation Bay`),

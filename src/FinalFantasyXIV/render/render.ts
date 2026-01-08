@@ -5,7 +5,7 @@ import { Animator } from "../animate";
 import { DebugSceneGraphPanel } from "../debug";
 import { GfxBlendFactor, GfxBlendMode, GfxCullMode, GfxDevice } from "../../gfx/platform/GfxPlatform";
 import { FFXIVFilesystem } from "../files/Filesystem";
-import { SceneGraph, SceneNode, walkScene } from "../scene";
+import { SceneGraph, SceneNode, walkScene } from "../scenegraph";
 import { colorNewFromRGBA } from "../../Color";
 import { CameraController } from "../../Camera";
 import { setAttachmentStateSimple } from "../../gfx/helpers/GfxMegaStateDescriptorHelpers";

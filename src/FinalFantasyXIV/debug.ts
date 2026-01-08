@@ -1,5 +1,5 @@
 import * as UI from "../ui";
-import { SceneGraph, SceneNode } from "./scene";
+import { SceneGraph, SceneNode } from "./scenegraph";
 import { ScrollSelectItem, ScrollSelectItemType } from "../ui";
 import { FlatLayoutObject } from "./files/FlatLayoutObject";
 import { SgbFile } from "./files/sgb";

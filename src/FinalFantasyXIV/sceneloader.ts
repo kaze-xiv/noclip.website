@@ -1,5 +1,5 @@
 import { FFXIVFilesystem, pathBase } from "./files/Filesystem";
-import { SceneNode } from "./scene";
+import { SceneNode } from "./scenegraph";
 import { SgbFile } from "./files/sgb";
 import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
 import { DataFetcher } from "../DataFetcher";
