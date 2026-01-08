@@ -9,9 +9,12 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use euclid::Angle;
 use euclid::default::{Rotation3D, Transform3D, Translation3D, Vector3D};
+use log::log;
 use nalgebra_glm::lerp_scalar;
 use physis::uld::Timeline;
 use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::console;
+use crate::util::log;
 
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
@@ -130,7 +133,7 @@ pub struct FFXIVSgb {
     pub(crate) inner: Sgb,
     pub discoveredModels: Vec<String>,
     pub discoveredSgbs: Vec<String>,
-    pub animation_controller: AnimationController,
+    pub animation_controller: Option<AnimationController>,
 }
 
 #[wasm_bindgen]
@@ -164,7 +167,7 @@ impl FFXIVSgb {
             .objects
     }
 
-    fn generate_animation_controller(inner: &Sgb) -> AnimationController {
+    fn generate_animation_controller(inner: &Sgb) -> Option<AnimationController> {
         let mut out: HashMap<u32, Vec<(TimelineNodeData, Option<Vec<TmfcData>>)>> = HashMap::new();
         for section in &inner.sections {
             for layer_group in &section.layer_groups {
@@ -197,7 +200,11 @@ impl FFXIVSgb {
                 }
             }
         }
-        return AnimationController { inner: out };
+        if out.len() > 0 {
+            Some(AnimationController { inner: out })
+        } else {
+            None
+        }
     }
 }
 
@@ -209,11 +216,14 @@ pub struct AnimationController {
 
 #[wasm_bindgen]
 impl AnimationController {
-    pub fn animate(&self, sgb: &FFXIVSgb, instance_id: u32, dt: f32, model_matrix: &mut [f32]) {
+    pub fn animate(&self, sgb: &FFXIVSgb, instance_id: u32, dt: f32, model_matrix: &mut [f32]) -> bool {
         let obj = sgb.inner.sections.iter().flat_map(|s| &s.layer_groups).flat_map(|g| &g.layers).flat_map(|l| &l.objects).find(|o| o.instance_id == instance_id);
         if let Some(obj) = obj {
-            let mut mm = convert_transform(obj.transform);
             if let Some(timelines) = self.inner.get(&instance_id) {
+                // log(format!("Rust found {:?}, {:?}", obj, timelines).as_str());
+                let mut mm: Transform3D<f32> = Transform3D::identity();
+                // let mut mm = convert_transform(obj.transform);
+
                 for timeline in timelines {
                     match timeline {
                         (TimelineNodeData::C013(model_animation), Some(curves)) => {
@@ -226,10 +236,13 @@ impl AnimationController {
                         _ => {}
                     }
                 }
+                mm = mm.then(&convert_transform(obj.transform));
 
+                model_matrix.copy_from_slice(&mm.to_array());
+                return true;
             }
-            model_matrix.copy_from_slice(&mm.to_array())
         }
+        false
     }
 }
 
@@ -246,17 +259,13 @@ fn curve_to_transform3d(curve: &TmfcData, at: f32, loop_duration: Option<f32>) -
     };
     let start = curve.rows.iter().find(|x| x.time <= looped_at).or(curve.rows.first()).unwrap();
     let end = curve.rows.iter().find(|x| x.time >= looped_at).or(curve.rows.last()).unwrap();
-    println!("{:?}, {:?}", start, end);
-    let a = (at - start.time) / (end.time - start.time);
+    let a = (looped_at - start.time) / (end.time - start.time);
 
     let value = lerp_scalar(start.value, end.value, a);
-
-    println!("a: {:?}, value: {:?}", a, value);
-
     match curve.attribute {
-        Attribute::PositionX => Translation3D::new(value, 0f32, 0f32).to_transform(),
-        Attribute::PositionY => Translation3D::new(0f32, value, 0f32).to_transform(),
-        Attribute::PositionZ => Translation3D::new(0f32, 0f32, value).to_transform(),
+        // Attribute::PositionX => Translation3D::new(value, 0f32, 0f32).to_transform(),
+        // Attribute::PositionY => Translation3D::new(0f32, value, 0f32).to_transform(),
+        // Attribute::PositionZ => Translation3D::new(0f32, 0f32, value).to_transform(),
         Attribute::RotationX => Rotation3D::around_x(Angle::degrees(value)).to_transform(),
         Attribute::RotationY => Rotation3D::around_y(Angle::degrees(value)).to_transform(),
         Attribute::RotationZ => Rotation3D::around_z(Angle::degrees(value)).to_transform(),
@@ -331,6 +340,13 @@ mod tests {
         let sgb = Sgb::from_existing(Platform::Win32, &read(path.clone()).unwrap()).unwrap();
         let wrapper = FFXIVSgb::parse(read(path.clone()).unwrap());
         let mut mm = [0f32; 16];
-        wrapper.animation_controller.animate(&wrapper, 9, 100f32, &mut mm);
+        if let Some(animation_controller) = &wrapper.animation_controller {
+            animation_controller.animate(&wrapper, 9, 100f32, &mut mm);
+        }
+
+        let path = PathBuf::from("/data/Projects/noclip.website/data/FFXIV/bgcommon/world/aet/shared/for_bg/sgbg_w_aet_001_01b.sgb");
+        let sgb2 = Sgb::from_existing(Platform::Win32, &read(path.clone()).unwrap()).unwrap();
+        let wrapper2 = FFXIVSgb::parse(read(path.clone()).unwrap());
+        println!("bla")
     }
 }

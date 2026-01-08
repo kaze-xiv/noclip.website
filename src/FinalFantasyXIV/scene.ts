@@ -37,20 +37,6 @@ export class SceneGraphCreator {
         }
     }
 
-    // createSceneGraph(): SceneGraph {
-    //     const children: SceneNode[] = [];
-    //
-    //     if (this.fs.terrain) {
-    //         children.push(this.createTerrainSceneNode(this.fs.terrain!));
-    //     }
-    //
-    //     for (let [name, lgb] of this.fs.lgbs) {
-    //         children.push(this.createLgbSceneNode(name, lgb));
-    //     }
-    //
-    //
-    // }
-
     createTerrainSceneNode(terrain: Terrain): SceneNode {
         const vec2scratch = vec2.create();
         const vec3scratch = vec3.create();
@@ -114,7 +100,7 @@ export class SceneGraphCreator {
         return {
             name: `SGB ${name}`,
             children: children, data: sgb, renderer: null, model_matrix: new Float32Array(rootModel),
-            animationController: sgb.inner.animation_controller,
+            animationController: sgb.inner.animation_controller ?? null,
         }
     }
 

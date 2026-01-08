@@ -13,7 +13,7 @@ import { GfxrAttachmentSlot } from '../gfx/render/GfxRenderGraph.js';
 import { GfxShaderLibrary } from '../gfx/helpers/GfxShaderLibrary.js';
 import { createBufferFromData } from '../gfx/helpers/BufferHelpers.js';
 import { FFXIVModel, MeshWrapper } from "../../rust/pkg";
-import { Color, colorNewFromRGBA, OpaqueBlack } from "../Color";
+import { Color, colorNewFromRGBA, OpaqueBlack, Red } from "../Color";
 import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpers/TopologyHelpers";
 import { FFXIVFilesystem } from "./Filesystem";
 import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
@@ -24,6 +24,7 @@ import { SceneGraph, SceneGraphCreator, SceneNode } from "./scene";
 import { Animator } from "./animate";
 import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
 import { SgbFile } from "./sgb";
+import { DebugSceneGraphPanel } from "./debug";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -108,6 +109,8 @@ export class MeshRenderer {
     public triBuffer: GfxBuffer;
     public textureMappings: (TextureMapping | null)[] = [];
 
+    public vertices: Uint8Array;
+
     constructor(public globals: RenderGlobals,
                 public materialName: string,
                 public mesh: MeshWrapper) {
@@ -123,7 +126,7 @@ export class MeshRenderer {
 
         this.color = randomColorMap[materialName] ?? OpaqueBlack; // TODO this is because loading a festival messes the state up
 
-        const vertices = mesh.attributes();
+        const vertices = this.vertices = mesh.attributes();
         this.vertexBuffer = createBufferFromData(globals.renderHelper.device, GfxBufferUsage.Vertex, GfxBufferFrequencyHint.Static, vertices.buffer)
 
         const triBytes = mesh.indices();
@@ -136,16 +139,18 @@ export class MeshRenderer {
         ];
     }
 
-    public debugDrawVertices(viewerInput: Viewer.ViewerRenderInput) {
-        // const view = new DataView(this.vertices.buffer);
-        // const vec = vec3.create();
-        // for (let i = 0; i < this.vertices.length / stride; i++) {
-        //     const start = stride * i;
-        //     vec3.set(vec, view.getFloat32(start + 0), view.getFloat32(start + 4), view.getFloat32(start + 8));
-        //     vec3.add(vec, vec, this.terrainModelRenderer.origin);
-        //     drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, this.color, 3);
-        //     // drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, `${i}`, 0, OpaqueBlack, {font: "12pt monospace"})
-        // }
+    public debugDrawVertices(viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4) {
+        const view = new DataView(this.vertices.buffer);
+        const mat = mat4.create();
+        const vec = vec3.create();
+        mat4.getTranslation(vec, modelMatrix);
+        for (let i = 0; i < this.vertices.length; i+=stride) {
+            mat4.fromTranslation(mat, [view.getFloat32(i + 0, true), view.getFloat32(i + 4, true), view.getFloat32(i + 8, true)])
+            mat4.mul(mat, modelMatrix, mat);
+            mat4.getTranslation(vec, mat);
+            drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, Red, 2);
+            // drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, vec, `${i}`, 0, OpaqueBlack, {font: "12pt monospace"})
+        }
     }
 
     public prepareToRender(viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4): void {
@@ -199,6 +204,11 @@ export class ModelRenderer {
     public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4): void {
         for (let i = 0; i < this.meshRenderers.length; i++)
             this.meshRenderers[i].prepareToRender(viewerInput, modelMatrix);
+    }
+
+    public debugDraw(viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4) {
+        for (let i = 0; i < this.meshRenderers.length; i++)
+            this.meshRenderers[i].debugDrawVertices(viewerInput, modelMatrix);
     }
 
     destroy() {
@@ -286,6 +296,8 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     public scene: SceneGraph;
     public textureHolder: UI.TextureListHolder;
     public animator = new Animator();
+
+    private debugPanel = new DebugSceneGraphPanel();
 
     constructor(device: GfxDevice, filesystem: FFXIVFilesystem) {
         const globals = this.globals = new RenderGlobals(device, filesystem);
@@ -380,12 +392,23 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         mat4.mul(parent_transform, parent_transform, node.model_matrix);
         node?.renderer?.prepareToRender(this.globals.renderInstManager, viewerInput, parent_transform);
 
-        // mat4.getTranslation(this.scratchVec3, parent_transform);
-        // drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node.name}`, 10, OpaqueBlack, {
-        //     font: "6pt monospace",
-        //     align: "center"
-        // })
-        // drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
+        mat4.getTranslation(this.scratchVec3, parent_transform);
+        const node_instance_id = (node.data as any)?.instance_id;
+        const layer_type = (node?.data as any)?.layer_type;
+        if (layer_type == 1 || layer_type == 6) {
+            const name = node.name ? node.name.substring(node.name.lastIndexOf("/") + 1) : `type ${(node?.data as any)?.layer_type}`
+            drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node_instance_id} ${name}`, -10, OpaqueBlack, {
+                font: "6pt monospace",
+                align: "center"
+            })
+            drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
+        }
+
+        if (node == this.debugPanel.highlightedNode) {
+            if (node.renderer instanceof ModelRenderer) {
+                (node.renderer as ModelRenderer).debugDraw(viewerInput, parent_transform);
+            }
+        }
 
 
         for (let i = 0; i < (node.children?.length ?? 0); i++) {
@@ -427,7 +450,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
     }
 
     createPanels(): UI.Panel[] {
-        return [this.createFestivalPanel()];
+        return [this.createFestivalPanel(), this.debugPanel.createPanel(this.scene)];
     }
 
     createFestivalPanel(): UI.Panel {
