@@ -1,5 +1,6 @@
-use ironworks::file::mtrl::Material;
-use std::io::Cursor;
+use physis::common::Platform;
+use physis::mtrl::Material;
+use physis::ReadableFile;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -13,12 +14,11 @@ pub struct FFXIVMaterial {
 impl FFXIVMaterial {
     #[wasm_bindgen]
     pub fn parse(data: Vec<u8>) -> FFXIVMaterial {
-        let cursor = Cursor::new(data);
-        let mat: Material = ironworks::file::File::read(cursor).unwrap();
+        let material = Material::from_existing(Platform::Win32, data.as_slice()).unwrap();
 
         FFXIVMaterial {
-            texture_names: mat.samplers().into_iter().map(|s| s.texture()).collect(),
-            shader_name: mat.shader().to_string(),
+            texture_names: material.texture_paths,
+            shader_name: material.shader_package_name,
         }
     }
 }

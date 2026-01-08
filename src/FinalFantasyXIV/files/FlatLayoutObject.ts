@@ -1,4 +1,4 @@
-import { rust } from "../rustlib";
+import { rust } from "../../rustlib";
 
 export interface FlatLayoutObject extends rust.FlatLayoutObject {
 

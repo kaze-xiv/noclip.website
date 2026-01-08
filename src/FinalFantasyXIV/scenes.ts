@@ -3,57 +3,49 @@ import { GfxDevice } from "../gfx/platform/GfxPlatform";
 import { SceneGfx } from "../viewer";
 
 import { rust } from '../rustlib.js';
-import { FFXIVRenderer, processTextures } from "./render";
-import { FFXIVFilesystem } from "./Filesystem";
+import { FFXIVFilesystem } from "./files/Filesystem";
+import { SceneLoader } from "./scene_loader";
+import { SceneNode } from "./scene";
+import { FFXivSceneRenderer } from "./render/render";
 
-class FFXIVMapDesc implements SceneDesc {
-
+abstract class FFXIVSceneGraphDesc implements SceneDesc {
     constructor(public id: string, public name: string = id) {
     }
 
-    public async createScene(device: GfxDevice, context: SceneContext): Promise<SceneGfx> {
+    async createScene(device: GfxDevice, context: SceneContext): Promise<SceneGfx> {
         rust.init_panic_hook();
 
         const fs = new FFXIVFilesystem(context.dataFetcher);
 
         console.time("Load FS");
-        await fs.loadTerrain(this.id);
+        const sceneGraph = await this.createSceneGraph(fs);
         console.timeEnd("Load FS");
 
-        console.time("Process textures");
-        const vTextures = processTextures(device, fs);
-        console.timeEnd("Process textures");
+        return new FFXivSceneRenderer(device, fs, sceneGraph);
+    }
 
-        const scene = new FFXIVRenderer(device, fs);
-        scene.setSceneTerrain();
-        scene.textureHolder = vTextures;
-        return scene;
+    abstract createSceneGraph(fs: FFXIVFilesystem): Promise<SceneNode>
+}
+
+class FFXIVMapDesc extends FFXIVSceneGraphDesc {
+
+    constructor(public override id: string, public override name: string = id) {
+        super(id, name);
+    }
+
+    async createSceneGraph(fs: FFXIVFilesystem): Promise<SceneNode> {
+        return await new SceneLoader(fs).loadLevel(this.id);
     }
 }
 
-class FFXIVSgbDesc implements SceneDesc {
+class FFXIVSgbDesc extends FFXIVSceneGraphDesc {
 
-    constructor(public id: string, public name: string = id) {
+    constructor(public override id: string, public override name: string = id) {
+        super(id, name);
     }
 
-    public async createScene(device: GfxDevice, context: SceneContext): Promise<SceneGfx> {
-        rust.init_panic_hook();
-
-        const fs = new FFXIVFilesystem(context.dataFetcher);
-
-        console.time("Load FS");
-        const sgb = await fs.recursiveLoadSgb(this.id);
-        console.timeEnd("Load FS");
-
-        console.time("Process textures");
-        const vTextures = processTextures(device, fs);
-        console.timeEnd("Process textures");
-
-        const renderer = new FFXIVRenderer(device, fs);
-        renderer.setSceneSgb(this.id, sgb);
-        console.log(renderer.scene);
-        renderer.textureHolder = vTextures;
-        return renderer;
+    async createSceneGraph(fs: FFXIVFilesystem): Promise<SceneNode> {
+        return await new SceneLoader(fs).createNodeFromGb(this.id, await fs.loadSgb(this.id));
     }
 }
 

@@ -10,7 +10,6 @@ pub struct FFXIVTexture {
 #[wasm_bindgen]
 impl FFXIVTexture {
     pub fn decode_bc7(tex_file_data: Vec<u8>) -> Vec<u8> {
-        let x = Texture::from_existing(Platform::Win32, tex_file_data.as_slice()).unwrap();
-        x.rgba
+        Texture::from_existing(Platform::Win32, tex_file_data.as_slice()).unwrap().rgba
     }
 }

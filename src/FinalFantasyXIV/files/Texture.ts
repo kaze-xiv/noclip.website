@@ -1,10 +1,10 @@
-import ArrayBufferSlice from "../ArrayBufferSlice";
-import { GfxDevice, GfxFormat, GfxPlatform, makeTextureDescriptor2D } from "../gfx/platform/GfxPlatform";
-import { GfxTexture } from "../gfx/platform/GfxPlatformImpl";
-import { DecodedSurfaceBC, decompressBC } from "../Common/bc_texture";
-import { convertToCanvas } from "../gfx/helpers/TextureConversionHelpers";
-import { FFXIVTexture } from "../../rust/pkg";
-import { calcMipLevelByteSize } from "../gfx/helpers/TextureHelpers";
+import ArrayBufferSlice from "../../ArrayBufferSlice";
+import { GfxDevice, GfxFormat, makeTextureDescriptor2D } from "../../gfx/platform/GfxPlatform";
+import { GfxTexture } from "../../gfx/platform/GfxPlatformImpl";
+import { DecodedSurfaceBC, decompressBC } from "../../Common/bc_texture";
+import { convertToCanvas } from "../../gfx/helpers/TextureConversionHelpers";
+import { FFXIVTexture } from "../../../rust/pkg";
+import { calcMipLevelByteSize } from "../../gfx/helpers/TextureHelpers";
 
 export class Texture {
     public attributes: number;
@@ -43,12 +43,13 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
-        if (target == GfxFormat.BC7) {
-            return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
-        } else {
-            return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
-        }
-        /*
+
+        // if (target == GfxFormat.BC7) {
+        //     return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
+        // } else {
+        //     return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+        // }
+
         if (device.queryTextureFormatSupported(target, this.width, this.height)) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         } else {
@@ -57,7 +58,7 @@ export class Texture {
             } else {
                 return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
             }
-        }*/
+        }
     }
 
     createGfxTextureThroughSwConversion(device: GfxDevice): GfxTexture | null {
@@ -80,6 +81,10 @@ export class Texture {
     }
 
     createGfxTextureThroughDirectUpload(device: GfxDevice, gfxFormat: GfxFormat): GfxTexture | null {
+        let mips = this.mipLevels;
+        if (mips > 20) { // wtf
+            return this.createGfxTextureThroughRustDecode(device);
+        }
         const gfxTexture = device.createTexture(makeTextureDescriptor2D(gfxFormat, this.width, this.height, this.mipLevels));
         const mipDatas: Uint8Array[] = [];
         let dataOffs = 0;

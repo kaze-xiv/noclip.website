@@ -1,7 +1,7 @@
-import { SceneGraph, SceneNode, SceneNodeData, walkScene } from "./scene";
-import { SgbFile } from "./sgb";
+import { SceneGraph, SceneNode, walkScene } from "./scene";
+import { SgbFile } from "./files/sgb";
 import { AnimationController } from "../../rust/pkg";
-import { FlatLayoutObject } from "./FlatLayoutObject";
+import { FlatLayoutObject } from "./files/FlatLayoutObject";
 
 export class Animator {
     public animate(scene: SceneGraph, timeMs: number) {
@@ -18,6 +18,9 @@ export class Animator {
             const instance_id = data?.instance_id;
             if (!instance_id) continue;
             const result = animationController.animate(sgb.inner, instance_id, timeMs / 100, child.model_matrix);
+            if (result) {
+                // console.log(node.name, "animated instance ", instance_id);
+            }
         }
     }
 }

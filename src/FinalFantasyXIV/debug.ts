@@ -1,8 +1,8 @@
 import * as UI from "../ui";
 import { SceneGraph, SceneNode } from "./scene";
 import { ScrollSelectItem, ScrollSelectItemType } from "../ui";
-import { FlatLayoutObject } from "./FlatLayoutObject";
-import { SgbFile } from "./sgb";
+import { FlatLayoutObject } from "./files/FlatLayoutObject";
+import { SgbFile } from "./files/sgb";
 
 interface SceneNodeWithDepth {
     node: SceneNode,
@@ -14,7 +14,6 @@ export class DebugSceneGraphPanel {
     public highlightedNode: SceneNode | null = null;
 
     private* walk(node: SceneNode, depth: number): Generator<SceneNodeWithDepth> {
-
         if (!(node.data as SgbFile)?.inner) {
             // skip
             yield {node, depth};
@@ -33,7 +32,7 @@ export class DebugSceneGraphPanel {
 
         const instance_id = (node?.data as FlatLayoutObject)?.instance_id;
         const layer_type = (node?.data as FlatLayoutObject)?.layer_type;
-        const desc = instance_id ? `${instance_id}: ${node.name ?? `Unknown node ${layer_type?.toString(16)})`}` : (node.name ?? `Unknown node ${layer_type?.toString(16)}`)
+        const desc = instance_id ? `${instance_id}: ${node.name ?? `Unknown node 0x${layer_type?.toString(16)}`}` : (node.name ?? `Unknown node 0x${layer_type?.toString(16)}`)
         span.innerHTML = prefix + desc;
         return {
             type: ScrollSelectItemType.Selectable,

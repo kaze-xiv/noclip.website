@@ -1,6 +1,6 @@
-import ArrayBufferSlice from "../ArrayBufferSlice";
+import ArrayBufferSlice from "../../ArrayBufferSlice";
 import { vec2 } from "gl-matrix";
-import { FFXIVModel } from "../../rust/pkg";
+import { FFXIVModel } from "../../../rust/pkg";
 
 export class Terrain {
 
