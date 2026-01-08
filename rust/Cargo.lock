@@ -135,7 +135,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8ba42866ce5bced2645bfa15e97eef2c62d2bdb530510538de8dd3d04efff3c"
 dependencies = [
  "either",
- "owo-colors",
+ "owo-colors 3.5.0",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -148,6 +148,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "376404e55ec40d0d6f8b4b7df3f87b87954bd987f0cf9a7207ea3b6ea5c9add4"
 dependencies = [
  "either",
+ "owo-colors 4.2.3",
  "proc-macro2",
  "quote",
  "syn 2.0.111",
@@ -812,6 +813,7 @@ name = "noclip-support"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "binrw 0.15.0",
  "byteorder",
  "console_error_panic_hook",
  "deku 0.19.1",
@@ -930,6 +932,12 @@ name = "owo-colors"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
+
+[[package]]
+name = "owo-colors"
+version = "4.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
 name = "paste"

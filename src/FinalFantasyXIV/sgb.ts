@@ -1,14 +1,15 @@
 import { rust } from "../rustlib";
 import { FlatLayoutObject, shimFlatLayoutObject } from "./FlatLayoutObject";
 
-export interface SgbFile extends rust.FFXIVSgb {
-
+export interface SgbFile {
+    objects: FlatLayoutObject[];
+    discoveredModels: string[];
+    discoveredSgbs: string[];
 }
 
 export function shimSgb(file: rust.FFXIVSgb): SgbFile {
     const out = {
-        discoveredModels: file.discoveredModels, discoveredSgbs: file.discoveredSgbs, objects: file.objects.map(shimFlatLayoutObject),
-        free: null as any,
+        discoveredModels: file.discoveredModels, discoveredSgbs: file.discoveredSgbs, objects: file.flatten_objects().map(shimFlatLayoutObject),
     }
     return out;
 }

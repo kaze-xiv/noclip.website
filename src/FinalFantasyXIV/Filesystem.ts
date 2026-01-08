@@ -3,7 +3,7 @@ import { Terrain } from "./Terrain";
 import { Texture } from "./Texture";
 import { DataFetcher } from "../DataFetcher";
 import { range } from "../MathHelpers";
-import { shimLgb, shimSgb } from "./sgb";
+import { SgbFile, shimLgb, shimSgb } from "./sgb";
 
 const pathBase = "FFXIV";
 
@@ -13,7 +13,7 @@ export class FFXIVFilesystem {
     public textures = new Map<string, Texture>();
     public materials = new Map<string, FFXIVMaterial>();
     public lgbs = new Map<string, FFXIVLgb>();
-    public sgbs = new Map<string, FFXIVSgb>();
+    public sgbs = new Map<string, SgbFile>();
 
     constructor(public dataFetcher: DataFetcher) {
     }
@@ -84,7 +84,7 @@ export class FFXIVFilesystem {
         }
     }
 
-    * modelsInSgb(lgb: FFXIVSgb, festivalId: number = 0): IterableIterator<string> {
+    * modelsInSgb(lgb: SgbFile, festivalId: number = 0): IterableIterator<string> {
         if (festivalId == 0) {
             for (let i = 0; i < lgb.discoveredModels.length; i++)
                 yield lgb.discoveredModels[i];
@@ -96,7 +96,7 @@ export class FFXIVFilesystem {
         }
     }
 
-    * sgbsInSgb(lgb: FFXIVSgb, festivalId: number = 0): IterableIterator<string> {
+    * sgbsInSgb(lgb: SgbFile, festivalId: number = 0): IterableIterator<string> {
         if (festivalId == 0) {
             for (let i = 0; i < lgb.discoveredSgbs.length; i++)
                 yield lgb.discoveredSgbs[i];
@@ -168,7 +168,7 @@ export class FFXIVFilesystem {
         return lgb;
     }
 
-    private async loadSgb(path: string): Promise<FFXIVSgb> {
+    private async loadSgb(path: string): Promise<SgbFile> {
         const attempt = this.sgbs.get(path);
         if (attempt) return attempt;
         const data = await this.dataFetcher.fetchData(`${pathBase}/${path}`);
