@@ -12,8 +12,8 @@ export function shimFlatLayoutObject(file: rust.FlatLayoutObject): FlatLayoutObj
         rotation: file.rotation,
         scale: file.scale,
         translation: file.translation,
-        free: null as any
-
+        free: null as any,
+        instance_id: file.instance_id
     };
     // return structuredClone(file);
 }

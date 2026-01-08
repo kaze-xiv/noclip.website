@@ -1,4 +1,4 @@
-import { mat4, quat, ReadonlyMat4, vec2, vec3, vec4 } from 'gl-matrix';
+import { mat4, ReadonlyMat4 } from 'gl-matrix';
 
 import { DeviceProgram } from '../Program.js';
 import * as Viewer from '../viewer.js';
@@ -12,16 +12,15 @@ import { CameraController, computeViewMatrix } from '../Camera.js';
 import { GfxrAttachmentSlot } from '../gfx/render/GfxRenderGraph.js';
 import { GfxShaderLibrary } from '../gfx/helpers/GfxShaderLibrary.js';
 import { createBufferFromData } from '../gfx/helpers/BufferHelpers.js';
-import { FFXIVModel, FlatLayoutObject, MeshWrapper } from "../../rust/pkg";
-import { Color, colorFromHSL, colorNewCopy, colorNewFromRGBA, OpaqueBlack } from "../Color";
+import { FFXIVModel, MeshWrapper } from "../../rust/pkg";
+import { Color, colorNewFromRGBA, OpaqueBlack } from "../Color";
 import { getTriangleCountForTopologyIndexCount, GfxTopology } from "../gfx/helpers/TopologyHelpers";
-import { Terrain } from "./Terrain";
 import { FFXIVFilesystem } from "./Filesystem";
 import { FakeTextureHolder, TextureMapping } from "../TextureHolder";
 import * as UI from "../ui";
 import { ScrollSelectItemType } from "../ui";
 import { setAttachmentStateSimple } from "../gfx/helpers/GfxMegaStateDescriptorHelpers";
-import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../DebugJunk";
+import { createSceneGraph, SceneGraph, SceneNode } from "./scene";
 
 class IVProgram extends DeviceProgram {
     public static a_Position = 0;
@@ -146,7 +145,7 @@ export class MeshRenderer {
         // }
     }
 
-    public prepareToRender(viewerInput: Viewer.ViewerRenderInput, modelMatrix: mat4): void {
+    public prepareToRender(viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4): void {
         const renderInstManager = this.globals.renderInstManager;
         const templateRenderInst = renderInstManager.getCurrentTemplate();
 
@@ -163,7 +162,6 @@ export class MeshRenderer {
         renderInst.setDrawCount(this.drawCount * 3);
         renderInst.setSamplerBindingsFromTextureMappings(this.textureMappings);
         renderInstManager.submitRenderInst(renderInst);
-
     }
 
     public destroy(): void {
@@ -195,129 +193,13 @@ export class ModelRenderer {
         }
     }
 
-    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput, modelMatrix: mat4): void {
+    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput, modelMatrix: ReadonlyMat4): void {
         for (let i = 0; i < this.meshRenderers.length; i++)
             this.meshRenderers[i].prepareToRender(viewerInput, modelMatrix);
     }
 
     destroy() {
         this.meshRenderers.forEach((r) => r.destroy());
-    }
-}
-
-type LayoutObjectRenderer = ModelRenderer | LayoutObjectsRenderer | null;
-
-export class LayoutObjectsRenderer {
-    public objectRenderers: (LayoutObjectRenderer | null)[];
-    private debugColor: Color = colorNewCopy(OpaqueBlack);
-
-    constructor(public globals: RenderGlobals, public objects: FlatLayoutObject[], public modelMatrix: ReadonlyMat4 = mat4.create()) {
-        const objs = this.objects;
-        this.objectRenderers = new Array(objs.length);
-
-        for (let i = 0; i < objs.length; i++) {
-            const obj = objs[i];
-            globals.festivals.add(obj.festival_id);
-            this.objectRenderers[i] = this.findRendererForObject(obj);
-        }
-
-        colorFromHSL(this.debugColor, Math.random(), 0.7, 0.6);
-    }
-
-    findRendererForObject(obj: FlatLayoutObject): LayoutObjectRenderer {
-        if (obj.layer_type == 0x01) {
-            const mdlLookup = this.globals.modelCache[obj.asset_name!];
-            return mdlLookup;
-        } else if (obj.layer_type == 0x06) {
-            const sgb = this.globals.filesystem.sgbs.get(obj.asset_name!);
-            if (!sgb) return null;
-            const joint = mat4.create();
-            const mine = mat4.create();
-            this.calculateModelMatrix(mine, obj);
-            mat4.mul(joint, this.modelMatrix, mine);
-            return new LayoutObjectsRenderer(this.globals, sgb?.objects, joint);
-        }
-        return null;
-    }
-
-    private scratchMat = mat4.create();
-    private scratchMat2 = mat4.create();
-    private scratchVec4 = vec4.create();
-
-    private scratchVec3 = vec3.create();
-
-    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
-
-        const modelMatrix = this.scratchMat;
-        const jointModelMatrix = this.scratchMat2;
-
-        for (let i = 0; i < this.objectRenderers.length; i++) {
-            const obj = this.objects[i];
-
-            this.calculateModelMatrix(jointModelMatrix, obj);
-            mat4.mul(modelMatrix, this.modelMatrix, jointModelMatrix)
-
-            const renderer = this.objectRenderers[i];
-            if (renderer) {
-                renderer.prepareToRender(renderInstManager, viewerInput, modelMatrix);
-            }
-
-            // debug
-            mat4.getTranslation(this.scratchVec3, modelMatrix);
-            if (obj.layer_type != 1) {
-                drawWorldSpaceText(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${obj.asset_name} ${obj.layer_type}`, 10, this.debugColor, {
-                    font: "6pt monospace",
-                    align: "center"
-                })
-            }
-            drawWorldSpacePoint(getDebugOverlayCanvas2D(), viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, this.debugColor, 3);
-        }
-    }
-
-    calculateModelMatrix(dst: mat4, obj: FlatLayoutObject) {
-        const rot = this.scratchVec4;
-
-        const origRot = obj.rotation;
-        quat.fromEuler(rot, origRot[0] / Math.PI * 180, origRot[1] / Math.PI * 180, origRot[2] / Math.PI * 180);
-        mat4.fromRotationTranslationScale(dst, rot, obj.translation, obj.scale);
-    }
-
-    destroy() {
-        this.objectRenderers.forEach((r) => r?.destroy());
-    }
-}
-
-export class TerrainRenderer {
-    private mat4Scratcha = mat4.create();
-    private vec2scratch = vec2.create();
-    private vec3scratch = vec3.create();
-
-    constructor(public globals: RenderGlobals, public terrain: Terrain, public modelRenderers: ModelRenderer[]) {
-
-    }
-
-    public prepareToRender(renderInstManager: GfxRenderInstManager, viewerInput: Viewer.ViewerRenderInput): void {
-        for (let i = 0; i < this.modelRenderers.length; i++) {
-            const renderer = this.modelRenderers[i]
-            const modelMatrix = this.mat4Scratcha;
-            this.computeModelMatrix(modelMatrix, i)
-
-            renderer.prepareToRender(renderInstManager, viewerInput, modelMatrix);
-        }
-    }
-
-    public computeModelMatrix(out: mat4, index: number) {
-        const terrain = this.globals.filesystem.terrain;
-        const xz = this.vec2scratch;
-
-        terrain.getPlatePosition(xz, index);
-        xz[0] += 0.5;
-        xz[1] += 0.5;
-        vec2.scale(xz, xz, terrain.plateSize);
-
-        const translation = this.vec3scratch;
-        vec3.set(translation, xz[0], 0, xz[1]);
-        mat4.fromTranslation(out, translation);
     }
 }
 
@@ -395,11 +277,10 @@ export class RenderGlobals {
     }
 }
 
+
 export class FFXIVRenderer implements Viewer.SceneGfx {
     globals: RenderGlobals;
-    private terrainRenderer: TerrainRenderer;
-    private lgbRenderers: (LayoutObjectsRenderer | null)[] = [];
-    private festivalRenderer: LayoutObjectsRenderer | null = null;
+    public scene: SceneGraph;
     public textureHolder: UI.TextureListHolder;
 
     constructor(device: GfxDevice, filesystem: FFXIVFilesystem) {
@@ -420,18 +301,9 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         }
         console.timeEnd("Create model renderers")
 
-        console.time("Create terrain renderer")
-        const terrainModelCache = new Array(filesystem.terrain.plateCount);
-        for (let i = 0; i < filesystem.terrain.modelNames.length; i++) {
-            terrainModelCache[i] = globals.modelCache[filesystem.terrain.modelNames[i]];
-        }
-        this.terrainRenderer = new TerrainRenderer(globals, this.globals.filesystem.terrain, terrainModelCache);
-        console.timeEnd("Create terrain renderer")
-
-        console.time("Create lgb renderers")
-        for (const [lgbPath, lgb] of filesystem.lgbs.entries())
-            this.lgbRenderers.push(new LayoutObjectsRenderer(globals, lgb.objects));
-        console.timeEnd("Create lgb renderers")
+        console.time("Create scene")
+        this.scene = createSceneGraph(globals);
+        console.timeEnd("Create scene")
     }
 
     public adjustCameraController(c: CameraController) {
@@ -460,15 +332,27 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
 
         renderHelper.renderInstManager.setCurrentList(this.globals.renderInstListMain);
 
-        this.terrainRenderer.prepareToRender(renderHelper.renderInstManager, viewerInput);
-
-        for (let i = 0; i < this.lgbRenderers.length; i++)
-            this.lgbRenderers[i]!.prepareToRender(renderHelper.renderInstManager, viewerInput);
-
-        this.festivalRenderer?.prepareToRender(renderHelper.renderInstManager, viewerInput);
+        this.prepareToRenderScene(viewerInput);
 
         renderHelper.renderInstManager.popTemplate();
         renderHelper.prepareToRender();
+    }
+
+    public prepareToRenderScene(viewerInput: Viewer.ViewerRenderInput) {
+        this.prepareToRenderNode(mat4.create(), this.scene, viewerInput);
+    }
+
+    public prepareToRenderNode(parent_transform: mat4, node: SceneNode, viewerInput: Viewer.ViewerRenderInput) {
+        const invert = mat4.create();
+        mat4.invert(invert, node.model_matrix);
+
+        mat4.mul(parent_transform, parent_transform, node.model_matrix);
+        node?.renderer?.prepareToRender(this.globals.renderInstManager, viewerInput, parent_transform);
+
+        for (let i = 0; i < (node.children?.length ?? 0); i++) {
+            this.prepareToRenderNode(parent_transform, node.children![i], viewerInput);
+        }
+        mat4.mul(parent_transform, parent_transform, invert);
     }
 
     public render(device: GfxDevice, viewerInput: Viewer.ViewerRenderInput) {
@@ -513,7 +397,7 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         const x = new UI.SingleSelect();
         const festivalIdsPresent = [...this.globals.festivals].sort((a, b) => a - b);
         const items = festivalIdsPresent.map((id) => festivals[id] ?? `Unknown festival ${id}`);
-        x.setItems(items.map(x => ({ type: ScrollSelectItemType.Selectable, name : `${x}`})));
+        x.setItems(items.map(x => ({type: ScrollSelectItemType.Selectable, name: `${x}`})));
         x.onselectionchange = (index: number) => {
             const festivalId = festivalIdsPresent[index];
             this.globals.filesystem.loadFestival([...this.globals.filesystem.lgbs.values()], festivalId).then(() => {
@@ -538,8 +422,8 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
                 }
                 console.timeEnd("Create model renderers")
 
-                const objects = [...this.globals.filesystem.lgbs.values()].flatMap(x => x.objects).filter(x => x.festival_id == festivalId);
-                this.festivalRenderer = new LayoutObjectsRenderer(this.globals, objects);
+                // const objects = [...this.globals.filesystem.lgbs.values()].flatMap(x => x.objects).filter(x => x.festival_id == festivalId);
+                // this.festivalRenderer = new LayoutObjectsRenderer(this.globals, objects);
                 console.log("Loaded festival", festivalId);
             });
         }
@@ -565,7 +449,7 @@ export function processTextures(device: GfxDevice, filesystem: FFXIVFilesystem):
     return fth;
 }
 
-const festivals: {[ids: number]: string | undefined } = {
+const festivals: { [ids: number]: string | undefined } = {
     50: "bg_newyear2018_00",
     51: "bg_china2018_00",
     52: "bg_korea2018_00",
