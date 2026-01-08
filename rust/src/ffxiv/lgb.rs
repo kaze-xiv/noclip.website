@@ -111,6 +111,15 @@ fn walk<'a>(layers: impl Iterator<Item=&'a Layer>) -> InstanceWalker {
                         sgbs.push(asset_path.clone());
                     }
                 }
+
+                LayerEntryData::EnvLocation(data) => {
+                    objects.push(FlatLayoutObject {
+                        layer_type: asset_type,
+                        asset_name: Some(data.env_map_asset_path.value.clone()),
+                        festival_id,
+                        festival_phase_id, instance_id, mm
+                    });
+                }
                 _ => objects.push(FlatLayoutObject {
                     layer_type: asset_type,
                     asset_name: None,
@@ -263,9 +272,9 @@ fn curve_to_transform3d(curve: &TmfcData, at: f32, loop_duration: Option<f32>) -
 
     let value = lerp_scalar(start.value, end.value, a);
     match curve.attribute {
-        // Attribute::PositionX => Translation3D::new(value, 0f32, 0f32).to_transform(),
-        // Attribute::PositionY => Translation3D::new(0f32, value, 0f32).to_transform(),
-        // Attribute::PositionZ => Translation3D::new(0f32, 0f32, value).to_transform(),
+        Attribute::PositionX => Translation3D::new(value, 0f32, 0f32).to_transform(),
+        Attribute::PositionY => Translation3D::new(0f32, value, 0f32).to_transform(),
+        Attribute::PositionZ => Translation3D::new(0f32, 0f32, value).to_transform(),
         Attribute::RotationX => Rotation3D::around_x(Angle::degrees(value)).to_transform(),
         Attribute::RotationY => Rotation3D::around_y(Angle::degrees(value)).to_transform(),
         Attribute::RotationZ => Rotation3D::around_z(Angle::degrees(value)).to_transform(),
@@ -324,6 +333,14 @@ mod tests {
     use std::io::{BufWriter, Cursor, Write};
     use std::path::PathBuf;
 
+
+    #[test]
+    fn test_lgb() {
+        let path = PathBuf::from("/data/Projects/noclip.website/data/FFXIV/bg/ffxiv/zon_z1/jai/z1j1/level/bg.lgb");
+        let lgb = Lgb::from_existing(Platform::Win32, &read(path.clone()).unwrap()).unwrap();
+
+        println!("wait")
+    }
     #[test]
     fn test_invalid() {
         let path = PathBuf::from("/data/Projects/noclip.website/data/FFXIV/bgcommon/world/aet/shared/for_bg/sgbg_w_aet_001_01a.sgb");

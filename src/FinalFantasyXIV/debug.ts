@@ -32,7 +32,8 @@ export class DebugSceneGraphPanel {
         const prefix = "&nbsp;".repeat(depth);
 
         const instance_id = (node?.data as FlatLayoutObject)?.instance_id;
-        const desc = instance_id ? `${instance_id}: ${node.name ?? "Unknown node"}` : (node.name ?? "Unknown node")
+        const layer_type = (node?.data as FlatLayoutObject)?.layer_type;
+        const desc = instance_id ? `${instance_id}: ${node.name ?? `Unknown node ${layer_type?.toString(16)})`}` : (node.name ?? `Unknown node ${layer_type?.toString(16)}`)
         span.innerHTML = prefix + desc;
         return {
             type: ScrollSelectItemType.Selectable,

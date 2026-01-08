@@ -43,6 +43,12 @@ export class Texture {
         if (this.gfxTexture) return this.gfxTexture;
         const target = this.getDesiredTargetGfxFormat();
         if (!target) return null;
+        if (target == GfxFormat.BC7) {
+            return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
+        } else {
+            return this.gfxTexture = this.createGfxTextureThroughSwConversion(device);
+        }
+        /*
         if (device.queryTextureFormatSupported(target, this.width, this.height)) {
             return this.gfxTexture = this.createGfxTextureThroughDirectUpload(device, target);
         } else {
@@ -51,7 +57,7 @@ export class Texture {
             } else {
                 return this.gfxTexture = this.createGfxTextureThroughRustDecode(device);
             }
-        }
+        }*/
     }
 
     createGfxTextureThroughSwConversion(device: GfxDevice): GfxTexture | null {
@@ -92,7 +98,7 @@ export class Texture {
     createGfxTextureThroughRustDecode(device: GfxDevice): GfxTexture | null {
         const decode = FFXIVTexture.decode_bc7(this.buffer.createTypedArray(Uint8Array));
 
-        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, this.mipLevels));
+        const gfxTexture = device.createTexture(makeTextureDescriptor2D(GfxFormat.U8_RGBA_NORM, this.width, this.height, 1));
         device.uploadTextureData(gfxTexture, 0, [decode]);
 
         this.canvas = convertToCanvas(ArrayBufferSlice.fromView(decode), this.width, this.height);

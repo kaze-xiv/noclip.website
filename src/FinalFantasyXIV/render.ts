@@ -395,14 +395,14 @@ export class FFXIVRenderer implements Viewer.SceneGfx {
         mat4.getTranslation(this.scratchVec3, parent_transform);
         const node_instance_id = (node.data as any)?.instance_id;
         const layer_type = (node?.data as any)?.layer_type;
-        if (layer_type == 1 || layer_type == 6) {
-            const name = node.name ? node.name.substring(node.name.lastIndexOf("/") + 1) : `type ${(node?.data as any)?.layer_type}`
-            drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node_instance_id} ${name}`, -10, OpaqueBlack, {
-                font: "6pt monospace",
-                align: "center"
-            })
-            drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
-        }
+        // if (layer_type == 1 || layer_type == 6) {
+        //     const name = node.name ? node.name.substring(node.name.lastIndexOf("/") + 1) : `type ${(node?.data as any)?.layer_type}`
+        //     drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node_instance_id} ${name}`, -10, OpaqueBlack, {
+        //         font: "6pt monospace",
+        //         align: "center"
+        //     })
+        //     drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
+        // }
 
         if (node == this.debugPanel.highlightedNode) {
             if (node.renderer instanceof ModelRenderer) {
