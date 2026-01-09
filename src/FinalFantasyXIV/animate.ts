@@ -13,7 +13,8 @@ export class Animator {
     }
 
     public animateNode(node: SceneNode, timeMs: number, sgb: SgbFile, animationController: AnimationController) {
-        for (let child of node.children ?? []) { // can an sgb look into other sgbs?
+        const children = node.children![0].children ?? []; // terrible hack for layers, which are not supposed to be in the scene graph lol
+        for (let child of children) { // can an sgb look into other sgbs?
             const data = child.data as FlatLayoutObject;
             const instance_id = data?.instance_id;
             if (!instance_id) continue;
