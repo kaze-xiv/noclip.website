@@ -2,7 +2,7 @@ import { FFXIVLgb, FFXIVMaterial, FFXIVModel, FFXIVSgb } from "../../../rust/pkg
 import { Terrain } from "./Terrain";
 import { Texture } from "./Texture";
 import { DataFetcher, NamedArrayBufferSlice } from "../../DataFetcher";
-import { SgbFile, shimLgb, shimSgb } from "./sgb";
+import { SgbFile, shimLgb, shimSgb } from "./layer";
 
 export const pathBase = "FFXIV";
 

@@ -1,49 +1,25 @@
 import * as UI from "../ui";
 import { ScrollSelectItemType } from "../ui";
+import { FFXIVLgb } from "../../rust/pkg";
 
 export class FestivalPanel extends UI.Panel {
-    constructor() {
+    constructor(lgbs: FFXIVLgb[], loadFestival: (festivalId: number) => void) {
         super();
         this.setTitle(UI.LAYER_ICON, "Festivals")
         const x = new UI.SingleSelect();
-        // const festivalIdsPresent = [...this.globals.festivals].sort((a, b) => a - b);
-        // const items = festivalIdsPresent.map((id) => festivals[id] ?? `Unknown festival ${id}`);
-        // x.setItems(items.map(x => ({type: ScrollSelectItemType.Selectable, name: `${x}`})));
-        // x.onselectionchange = (index: number) => {
-        //     const festivalId = festivalIdsPresent[index];
-        //     // this.globals.filesystem.loadFestival([...this.globals.filesystem.lgbs.values()], festivalId).then(() => {
-        //     //     const filesystem = this.globals.filesystem;
-        //     //     const globals = this.globals;
-        //     //
-        //     //     processTextures(this.globals.renderHelper.device, this.globals.filesystem);
-        //     //
-        //     //     for (const [materialPath, material] of filesystem.materials.entries()) {
-        //     //         const textureName = material?.texture_names[0];
-        //     //         const texture = globals.filesystem.textures.get(textureName);
-        //     //         const alpha = (texture == undefined || texture.gfxTexture == null) ? 0.9 : 0.0
-        //     //
-        //     //         randomColorMap[materialPath] = colorNewFromRGBA(Math.random(), Math.random(), Math.random(), alpha);
-        //     //     }
-        //     //
-        //     //     console.time("Create model renderers")
-        //     //     const modelEntries = filesystem.models.entries();
-        //     //     for (const [path, model] of modelEntries) {
-        //     //         if (globals.modelCache[path]) continue;
-        //     //         globals.modelCache[path] = new ModelRenderer(globals, model);
-        //     //     }
-        //     //     console.timeEnd("Create model renderers")
-        //     //
-        //     //     // const objects = [...this.globals.filesystem.lgbs.values()].flatMap(x => x.objects).filter(x => x.festival_id == festivalId);
-        //     //     // this.festivalRenderer = new LayoutObjectsRenderer(this.globals, objects);
-        //     //     console.log("Loaded festival", festivalId);
-        //     // });
-        // }
+        const festivalsinLgbs = lgbs.flatMap(lgb => [...lgb.find_festivals()]);
+        const uFestivalsInLgbs = [...new Set(festivalsinLgbs)].sort((a, b) => a - b);
+        const items = uFestivalsInLgbs.map((id) => festivals[id] ?? `Unknown festival ${id}`);
+        x.setItems(items.map(x => ({type: ScrollSelectItemType.Selectable, name: `${x}`})));
+        x.onselectionchange = (index: number) => {
+            const festivalId = uFestivalsInLgbs[index];
+            loadFestival(festivalId);
+        }
         this.contents.appendChild(x.elem);
-
     }
 }
 
-export const festivals: { [ids: number]: string | undefined } = {
+const festivals: { [ids: number]: string | undefined } = {
     50: "bg_newyear2018_00",
     51: "bg_china2018_00",
     52: "bg_korea2018_00",

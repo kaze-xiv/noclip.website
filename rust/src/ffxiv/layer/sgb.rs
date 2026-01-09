@@ -3,8 +3,7 @@ use physis::ReadableFile;
 use physis::sgb::Sgb;
 use wasm_bindgen::prelude::wasm_bindgen;
 use crate::ffxiv::animate::AnimationController;
-use crate::ffxiv::layer::object::FlatLayoutObject;
-use crate::ffxiv::layer::util::walk;
+use crate::ffxiv::layer::layer::LayerWrapped;
 
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
@@ -26,13 +25,9 @@ impl FFXIVSgb {
         }
     }
 
-    pub fn flatten_objects(&self) -> Vec<FlatLayoutObject> {
-        walk(
-            self.inner
-                .sections
-                .iter()
-                .flat_map(|x| &x.layer_groups)
-                .flat_map(|x| &x.layers),
-        )
+    pub fn layers(&self) -> Vec<LayerWrapped> {
+        return self.inner.sections.iter().flat_map(|x| &x.layer_groups).flat_map(|x| &x.layers)
+            .map(|layer| LayerWrapped::from_physis(layer))
+            .collect()
     }
 }

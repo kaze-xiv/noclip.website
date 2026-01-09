@@ -1,7 +1,7 @@
 import { FFXIVFilesystem, pathBase } from "./files/Filesystem";
 import { SceneNode } from "./scenegraph";
-import { SgbFile } from "./files/sgb";
-import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
+import { SgbFile } from "./files/layer";
+import { FFXIVLgb, FFXIVModel, LayerWrapped } from "../../rust/pkg";
 import { DataFetcher } from "../DataFetcher";
 import { Terrain } from "./files/Terrain";
 import { range } from "../MathHelpers";
@@ -88,16 +88,26 @@ export class SceneLoader {
         }
     }
 
-    public async createNodeFromGb(path: string, gb: FFXIVLgb | SgbFile): Promise<SceneNode> {
+    public async createNodeFromGb(path: string, gb: FFXIVLgb | SgbFile, filter_festival_id: number = 0): Promise<SceneNode> {
         const rootModel = mat4.create();
-        const objects = gb.objects;
-        const children = await Promise.all(objects.filter(o => o.festival_id == 0).map(o => this.createObjectNode(o)));
+        const layers = gb.layers;
+        const children = await Promise.all(layers.filter(o => o.festival_id == filter_festival_id).map(o => this.createLayerNode(o)));
 
         return {
             name: `GB ${path}`,
             children: children, data: gb,
             model_matrix: new Float32Array(rootModel),
             animationController: (gb as SgbFile).animation_controller,
+        }
+    }
+
+    async createLayerNode(layer: LayerWrapped): Promise<SceneNode> {
+        const children = await Promise.all(layer.objects.map(o => this.createObjectNode(o)));
+
+        return {
+            name: `Layer ${layer.name}`,
+            children: children, data: layer,
+            model_matrix: new Float32Array(mat4.create()),
         }
     }
 
@@ -111,18 +121,18 @@ export class SceneLoader {
             model_matrix: test, // TODO animate
         }
 
-        if (obj.layer_type == 0x01) {
+        if (obj.object_type == 0x01) {
             const model = await this.filesystem.loadPart(obj.asset_name!);
             if (model) await this.loadDependenciesOfModel(model);
             baseNode.model_name = obj.asset_name;
             // baseNode.renderer = this.modelCache[obj.asset_name!];
-        } else if (obj.layer_type == 0x06) {
+        } else if (obj.object_type == 0x06) {
             const assetName = obj.asset_name!;
             const sgb = await this.filesystem.loadSgb(assetName);
             if (sgb) {
                 baseNode.children = [await this.createNodeFromGb(assetName, sgb)];
             }
-        } else if (obj.layer_type == 0x2f) {
+        } else if (obj.object_type == 0x2f) {
             await this.filesystem.loadTexture(obj.asset_name!);
         }
         return baseNode;

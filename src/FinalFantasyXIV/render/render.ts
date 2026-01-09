@@ -18,6 +18,7 @@ import { FestivalPanel } from "../festivals";
 import { MeshProgram, randomColorMap } from "./mesh";
 import { ModelRenderer } from "./model";
 import { FakeTextureHolder } from "../../TextureHolder";
+import { SceneLoader } from "../sceneloader";
 
 export class FFXivSceneRenderer implements Viewer.SceneGfx {
     globals: RenderGlobals;
@@ -49,7 +50,10 @@ export class FFXivSceneRenderer implements Viewer.SceneGfx {
         console.time("Create model renderers")
         const modelEntries = this.globals.filesystem.models.entries();
         for (const [path, model] of modelEntries) {
-            this.globals.modelCache[path] = new ModelRenderer(this.globals, model);
+            const result = this.globals.modelCache[path];
+            if (!result) {
+                this.globals.modelCache[path] = new ModelRenderer(this.globals, model);
+            }
         }
         console.timeEnd("Create model renderers")
 
@@ -167,7 +171,43 @@ export class FFXivSceneRenderer implements Viewer.SceneGfx {
     }
 
     createPanels(): UI.Panel[] {
-        return [new FestivalPanel(), this.debugPanel.createPanel(this.sceneGraph)];
+        let festivalToRemove: SceneNode | undefined;
+        const festivalLoader = (festivalId: number) => {
+            const sceneLoader = new SceneLoader(this.globals.filesystem);
+                (async () =>{
+                    const nodes = await Promise.all([...this.globals.filesystem.lgbs.entries()].map(([name, lgb]) => sceneLoader.createNodeFromGb(name, lgb, festivalId)));
+                    const festival: SceneNode = {
+                        name: `Festival ${festivalId}`,
+                        model_matrix: new Float32Array(mat4.create()),
+                        children: nodes,
+                    };
+
+                    // this duplication from construction :-1:
+                    console.time("Process textures");
+                    const vTextures = processTextures(this.globals.renderHelper.device, this.globals.filesystem);
+                    console.timeEnd("Process textures");
+
+                    for (const [materialPath, material] of this.globals.filesystem.materials.entries()) {
+                        const textureName = material?.texture_names[0];
+                        const texture = this.globals.filesystem.textures.get(textureName);
+                        const alpha = (texture == undefined || texture.gfxTexture == null) ? 0.9 : 0.0
+
+                        randomColorMap[materialPath] = colorNewFromRGBA(Math.random(), Math.random(), Math.random(), alpha);
+                    }
+
+                    this.cacheModelRenderers(festival);
+                    if (festivalToRemove) {
+                        const index = this.sceneGraph.children!.indexOf(festivalToRemove!);
+                        this.sceneGraph.children!.splice(index, 1);
+                    }
+
+                    festivalToRemove = festival;
+
+                    this.sceneGraph.children?.push(festival);
+                })();
+
+        }
+        return [new FestivalPanel([...this.globals.filesystem.lgbs.values()], festivalLoader), this.debugPanel.createPanel(this.sceneGraph)];
     }
 
 }

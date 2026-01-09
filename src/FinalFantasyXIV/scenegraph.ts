@@ -1,11 +1,11 @@
-import { FFXIVLgb, FFXIVModel } from "../../rust/pkg";
+import { FFXIVLgb, FFXIVModel, LayerWrapped } from "../../rust/pkg";
 import { Terrain } from "./files/Terrain";
 import { FlatLayoutObject } from "./files/FlatLayoutObject";
-import { SgbFile } from "./files/sgb";
+import { SgbFile } from "./files/layer";
 import { rust } from "../rustlib";
 import { ModelRenderer } from "./render/model";
 
-export type SceneNodeData = FFXIVLgb | SgbFile | FFXIVModel | Terrain | FlatLayoutObject;
+export type SceneNodeData = FFXIVLgb | SgbFile | FFXIVModel | Terrain | FlatLayoutObject | LayerWrapped;
 
 export interface SceneNode {
     name?: string;

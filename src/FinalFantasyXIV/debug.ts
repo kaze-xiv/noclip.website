@@ -2,7 +2,7 @@ import * as UI from "../ui";
 import { SceneGraph, SceneNode } from "./scenegraph";
 import { ScrollSelectItem, ScrollSelectItemType } from "../ui";
 import { FlatLayoutObject } from "./files/FlatLayoutObject";
-import { SgbFile } from "./files/sgb";
+import { SgbFile } from "./files/layer";
 
 interface SceneNodeWithDepth {
     node: SceneNode,
@@ -31,7 +31,7 @@ export class DebugSceneGraphPanel {
         const prefix = "&nbsp;".repeat(depth);
 
         const instance_id = (node?.data as FlatLayoutObject)?.instance_id;
-        const layer_type = (node?.data as FlatLayoutObject)?.layer_type;
+        const layer_type = (node?.data as FlatLayoutObject)?.object_type;
         const desc = instance_id ? `${instance_id}: ${node.name ?? `Unknown node 0x${layer_type?.toString(16)}`}` : (node.name ?? `Unknown node 0x${layer_type?.toString(16)}`)
         span.innerHTML = prefix + desc;
         return {

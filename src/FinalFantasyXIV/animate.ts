@@ -1,5 +1,5 @@
 import { SceneGraph, SceneNode, walkScene } from "./scenegraph";
-import { SgbFile } from "./files/sgb";
+import { SgbFile } from "./files/layer";
 import { AnimationController } from "../../rust/pkg";
 import { FlatLayoutObject } from "./files/FlatLayoutObject";
 
