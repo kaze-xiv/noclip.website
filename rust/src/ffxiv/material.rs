@@ -12,12 +12,12 @@ pub struct FFXIVMaterial {
 #[wasm_bindgen]
 impl FFXIVMaterial {
     #[wasm_bindgen]
-    pub fn parse(data: Vec<u8>) -> FFXIVMaterial {
-        let material = Material::from_existing(Platform::Win32, data.as_slice()).unwrap();
+    pub fn parse(data: Vec<u8>) -> Option<FFXIVMaterial> {
+        let material = Material::from_existing(Platform::Win32, data.as_slice())?;
 
-        FFXIVMaterial {
+        Some(FFXIVMaterial {
             texture_names: material.texture_paths,
             shader_name: material.shader_package_name,
-        }
+        })
     }
 }

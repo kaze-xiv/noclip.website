@@ -141,7 +141,7 @@ export class SceneLoader {
     async loadDependenciesOfModel(model: FFXIVModel) {
         const materialsInTera = model.meshes.map(mesh => model.materials[mesh.get_material_index()]);
         const materials = await loadUniques(p => this.filesystem.loadMaterial(p), materialsInTera);
-        const textures = await loadUniques((p) => this.filesystem.loadTexture(p), materials.flatMap(m => m.texture_names));
+        const textures = await loadUniques((p) => this.filesystem.loadTexture(p), materials.flatMap(m => m?.texture_names ?? []));
     }
 }
 

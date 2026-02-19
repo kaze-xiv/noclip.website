@@ -61,11 +61,15 @@ export class FFXIVFilesystem {
         }
     }
 
-    public async loadMaterial(path: string): Promise<FFXIVMaterial> {
+    public async loadMaterial(path: string): Promise<FFXIVMaterial | undefined> {
         const attempt = this.materials.get(path);
         if (attempt) return attempt;
         return await this.queueDownloadAndParse(`${pathBase}/${path}`, (data) => {
             const parsed = FFXIVMaterial.parse(data.createTypedArray(Uint8Array));
+            if (parsed == undefined) {
+                console.log(`Could not parse material at ${path}`);
+                return undefined;
+            }
             // i'm paranoid about getter_with_clone now
             const shimMat = {
                 texture_names: parsed.texture_names,
