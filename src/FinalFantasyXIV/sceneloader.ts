@@ -1,7 +1,7 @@
 import { FFXIVFilesystem, pathBase } from "./files/Filesystem";
 import { SceneNode } from "./scenegraph";
 import { SgbFile } from "./files/layer";
-import { FFXIVLgb, FFXIVModel, LayerWrapped } from "../../rust/pkg";
+import { FFXIVLgb, FFXIVLvb, FFXIVModel, LayerWrapped } from "noclip-rust-support";
 import { DataFetcher } from "../DataFetcher";
 import { Terrain } from "./files/Terrain";
 import { range } from "../MathHelpers";
@@ -16,20 +16,15 @@ export class SceneLoader {
     }
 
     public async loadLevel(levelId: string): Promise<SceneNode> {
-
-        const lgbNames = [
-            "bg.lgb",
-            "planmap.lgb",
-            // "planevent.lgb",
-            // "planner.lgb",
-            // "planlive.lgb",
-            // "vfx.lgb",
-        ];
+        const lvb =  await this.loadLvb(levelId);
+        const lgbs = lvb.lgb_paths();
+        const remainingLgbs = lgbs.filter(x => x.includes("bg.lgb"));
+        const bgRoot = lvb.bg_path();
 
         const children = Promise.all([
-            this.loadTerrain(levelId),
-            ...await Promise.all(lgbNames.map(async name => {
-                const lgb = await this.filesystem.loadLgb(`${levelId}/level/${name}`);
+            this.loadTerrain(bgRoot),
+            ...await Promise.all(remainingLgbs.map(async name => {
+                const lgb = await this.filesystem.loadLgb(`${name}`);
                 return await this.createNodeFromGb(name, lgb);
             })),
         ])
@@ -41,13 +36,20 @@ export class SceneLoader {
         }
     }
 
-    public async loadTerrain(levelId: string): Promise<SceneNode> {
-        const path = `${levelId}/bgplate/terrain.tera`;
+    public async loadLvb(levelId: string): Promise<FFXIVLvb> {
+        const path = `bg/${levelId}.lvb`;
+        const data = await this.dataFetcher.fetchData(`${pathBase}/${path}`);
+        const lvb = FFXIVLvb.parse(data.createTypedArray(Uint8Array));
+        return lvb;
+    }
+
+    public async loadTerrain(bgRoot: string): Promise<SceneNode> {
+        const path = `${bgRoot}/bgplate/terrain.tera`;
         const terrain = new Terrain(await this.dataFetcher.fetchData(`${pathBase}/${path}`));
 
         const partNames = terrain.modelNames = range(0, terrain.plateCount).map(i => {
             const fn = `${i}`.padStart(4, "0");
-            return `${levelId}/bgplate/${fn}.mdl`;
+            return `${bgRoot}/bgplate/${fn}.mdl`;
         });
 
         const models = await Promise.all(partNames.map(p => this.filesystem.loadPart(p))) as FFXIVModel[]; // yuck
