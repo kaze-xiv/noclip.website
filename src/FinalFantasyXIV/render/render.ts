@@ -6,12 +6,12 @@ import { DebugSceneGraphPanel } from "../debug";
 import { GfxBlendFactor, GfxBlendMode, GfxCullMode, GfxDevice } from "../../gfx/platform/GfxPlatform";
 import { FFXIVFilesystem } from "../files/Filesystem";
 import { SceneGraph, SceneNode, walkScene } from "../scenegraph";
-import { colorNewFromRGBA } from "../../Color";
+import { colorNewFromRGBA, Magenta, OpaqueBlack } from "../../Color";
 import { CameraController } from "../../Camera";
 import { setAttachmentStateSimple } from "../../gfx/helpers/GfxMegaStateDescriptorHelpers";
 import { fillMatrix4x3, fillMatrix4x4 } from "../../gfx/helpers/UniformBufferHelpers";
 import { mat4, vec3 } from "gl-matrix";
-import { getDebugOverlayCanvas2D } from "../../DebugJunk";
+import { drawWorldSpacePoint, drawWorldSpaceText, getDebugOverlayCanvas2D } from "../../DebugJunk";
 import { makeBackbufferDescSimple, standardFullClearRenderPassDescriptor } from "../../gfx/helpers/RenderGraphHelpers";
 import { GfxrAttachmentSlot } from "../../gfx/render/GfxRenderGraph";
 import { FestivalPanel } from "../festivals";
@@ -104,6 +104,7 @@ export class FFXivSceneRenderer implements Viewer.SceneGfx {
     }
 
     scratchVec3 = vec3.create();
+    scratchVec3a = vec3.create();
     debugCanvas = getDebugOverlayCanvas2D();
 
     public prepareToRenderNode(parent_transform: mat4, node: SceneNode, viewerInput: Viewer.ViewerRenderInput) {
@@ -113,16 +114,16 @@ export class FFXivSceneRenderer implements Viewer.SceneGfx {
         mat4.mul(parent_transform, parent_transform, node.model_matrix);
         node?.renderer?.prepareToRender(this.globals.renderInstManager, viewerInput, parent_transform);
 
-        mat4.getTranslation(this.scratchVec3, parent_transform);
-        const node_instance_id = (node.data as any)?.instance_id;
-        const layer_type = (node?.data as any)?.layer_type;
-        // if (layer_type == 1 || layer_type == 6) {
-        //     const name = node.name ? node.name.substring(node.name.lastIndexOf("/") + 1) : `type ${(node?.data as any)?.layer_type}`
-        //     drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node_instance_id} ${name}`, -10, OpaqueBlack, {
-        //         font: "6pt monospace",
+        // mat4.getTranslation(this.scratchVec3, parent_transform);
+        // const node_instance_id = (node.data as any)?.instance_id;
+        // const object_type = (node?.data as any)?.object_type;
+        // if (object_type != 1) {
+        //     const name = node.name ? node.name.substring(node.name.lastIndexOf("/") + 1) : `type ${object_type}`
+        //     drawWorldSpaceText(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, `${node_instance_id} ${name}`, -10, Magenta, {
+        //         font: "8pt monospace",
         //         align: "center"
         //     })
-        //     drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, OpaqueBlack, 3);
+        //     drawWorldSpacePoint(this.debugCanvas, viewerInput.camera.clipFromWorldMatrix, this.scratchVec3, Magenta, 3);
         // }
 
         if (node == this.debugPanel.highlightedNode) {
