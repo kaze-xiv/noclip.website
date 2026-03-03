@@ -21,7 +21,7 @@ impl FFXIVLvb {
     }
 
     pub fn env_paths(&self) -> Vec<String> {
-        self.inner.sections[0].general.env_spaces.iter().map(|x| x.env_path.value.clone()).collect()
+        self.inner.sections[0].general.env_spaces.iter().map(|x| x.envb_path.value.clone()).collect()
     }
 
     pub fn bg_path(&self) -> String {
