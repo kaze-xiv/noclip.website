@@ -27,12 +27,13 @@ export class FFXIVFilesystem {
         return await promise;
     }
 
-    public async loadLgb(path: string): Promise<FFXIVLgb> {
+    public async loadLgb(path: string): Promise<FFXIVLgb | null> {
         return await this.queueDownloadAndParse(`${pathBase}/${path}`, (data) => {
+            if (data.byteLength == 0) return null;
             const lgb = shimLgb(FFXIVLgb.parse(data.createTypedArray(Uint8Array)));
             this.lgbs.set(path, lgb);
             return lgb;
-        });
+        }, true);
     }
 
     async loadSgb(path: string): Promise<SgbFile> {

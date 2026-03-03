@@ -18,15 +18,18 @@ export class SceneLoader {
     public async loadLevel(levelId: string): Promise<SceneNode> {
         const lvb =  await this.loadLvb(levelId);
         const lgbs = lvb.lgb_paths();
-        const remainingLgbs = lgbs.filter(x => x.includes("bg.lgb"));
+        // const remainingLgbs = lgbs.filter(x => x.includes("bg.lgb"));
+        const remainingLgbs = lgbs;
         const bgRoot = lvb.bg_path();
 
         const children = Promise.all([
             this.loadTerrain(bgRoot),
             ...await Promise.all(remainingLgbs.map(async name => {
                 const lgb = await this.filesystem.loadLgb(`${name}`);
-                return await this.createNodeFromGb(name, lgb);
-            })),
+                if (lgb)
+                    return await this.createNodeFromGb(name, lgb);
+                return null
+            })).then(x => x.filter(x => !!x)),
         ])
 
         return {
@@ -117,25 +120,30 @@ export class SceneLoader {
         const test = new Float32Array(mat4.create());
         obj.write_model_matrix(test);
 
+        const assetPath = obj.asset_name;
+
+        let assetName = obj.asset_name;
+        if (assetName) {
+            assetName = assetName.slice(assetName.lastIndexOf('/')+1)
+        }
         let baseNode: SceneNode = {
-            name: obj.asset_name,
+            name: assetName,
             data: obj,
             model_matrix: test, // TODO animate
         }
 
         if (obj.object_type == 0x01) {
-            const model = await this.filesystem.loadPart(obj.asset_name!);
+            const model = await this.filesystem.loadPart(assetPath!);
             if (model) await this.loadDependenciesOfModel(model);
             baseNode.model_name = obj.asset_name;
             // baseNode.renderer = this.modelCache[obj.asset_name!];
         } else if (obj.object_type == 0x06) {
-            const assetName = obj.asset_name!;
-            const sgb = await this.filesystem.loadSgb(assetName);
+            const sgb = await this.filesystem.loadSgb(assetPath!);
             if (sgb) {
-                baseNode.children = [await this.createNodeFromGb(assetName, sgb)];
+                baseNode.children = [await this.createNodeFromGb(assetPath!, sgb)];
             }
         } else if (obj.object_type == 0x2f) {
-            await this.filesystem.loadTexture(obj.asset_name!);
+            // await this.filesystem.loadTexture(assetPath!);
         }
         return baseNode;
     }
