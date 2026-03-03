@@ -34,10 +34,10 @@ getrandom = { version = "0.2.15", features = ["js"] }
 noclip-macros = { version = "*", path = "./noclip-macros" }
 texture2ddecoder = { git = "https://github.com/wgreenberg/texture2ddecoder" }
 anyhow = "1.0.99"
+itertools = "0.14.0"
 
 # FFXIV
 physis = { path = "/data/Projects/Physis" }
-binrw = "0.15.0"
 euclid = "0.22.11"
 
 
@@ -47,3 +47,11 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(wasm_bindgen_unstable_test
 [package.metadata.bin]
 wasm-bindgen-cli = { version = "0.2.100", locked = true, bins = ["wasm-bindgen"] }
 wasm-opt = { version = "0.116.1" }
+
+[[bin]]
+name = "ffxiv-extract"
+path = "src/ffxiv/tools/extract.rs"
+
+[[bin]]
+name = "ffxiv-scenes"
+path = "src/ffxiv/tools/scenes.rs"

@@ -118,7 +118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "376404e55ec40d0d6f8b4b7df3f87b87954bd987f0cf9a7207ea3b6ea5c9add4"
 dependencies = [
  "either",
- "owo-colors",
  "proc-macro2",
  "quote",
  "syn",
@@ -562,6 +561,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "jiff"
 version = "0.2.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,9 +611,9 @@ checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
 name = "libz-rs-sys"
-version = "0.5.5"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c10501e7805cee23da17c7790e59df2870c0d4043ec6d03f67d31e2b53e77415"
+checksum = "f22ae25415efaefbc733e0562f3b6d71e35668b584721d5724c3f7f18157bcaa"
 dependencies = [
  "zlib-rs",
 ]
@@ -731,7 +739,6 @@ name = "noclip-rust-support"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "binrw",
  "byteorder",
  "console_error_panic_hook",
  "deku 0.19.1",
@@ -739,6 +746,7 @@ dependencies = [
  "euclid",
  "getrandom",
  "inflate",
+ "itertools",
  "js-sys",
  "log",
  "lz4_flex",
@@ -813,12 +821,6 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
-
-[[package]]
-name = "owo-colors"
-version = "4.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
 name = "paste"
@@ -1450,6 +1452,6 @@ dependencies = [
 
 [[package]]
 name = "zlib-rs"
-version = "0.5.5"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40990edd51aae2c2b6907af74ffb635029d5788228222c4bb811e9351c0caad3"
+checksum = "c745c48e1007337ed136dc99df34128b9faa6ed542d80a1c673cf55a6d7236c8"
